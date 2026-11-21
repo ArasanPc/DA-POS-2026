@@ -1,0 +1,2768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DA POS</title>
+
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DA POS">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="description" content="DA POS - Fast offline-ready Point of Sale &amp; billing app">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <!-- Export Libraries (hosted locally so the app works fully offline) -->
+    <script src="lib/xlsx.full.min.js"></script>
+    <script src="lib/html2canvas.min.js"></script>
+    <script src="lib/jspdf.umd.min.js"></script>
+    <!-- QR Code Generator Library -->
+    <script src="lib/qrcode.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-light: #eff6ff;
+            --success: #10b981;
+            --success-hover: #059669;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --border-hover: #cbd5e1;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+            --radius: 12px;
+        }
+
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+        }
+
+        body { 
+            background: var(--bg); 
+            color: var(--text-main); 
+            padding-bottom: 85px; 
+            min-height: 100vh;
+        }
+
+        /* Header */
+        header { 
+            background: rgba(255, 255, 255, 0.95); 
+            backdrop-filter: blur(10px);
+            padding: 12px 18px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04); 
+            border-bottom: 1px solid var(--border);
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            position: sticky; 
+            top: 0; 
+            z-index: 100; 
+        }
+
+        .branding { display: flex; align-items: center; gap: 12px; max-width: 60%; }
+        .branding img { width: 42px; height: 42px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; box-shadow: var(--shadow-sm); }
+        .branding h1 { font-size: 1.05rem; font-weight: 800; line-height: 1.2; letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .branding p { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+
+        .tab-content { display: none; padding: 14px; max-width: 900px; margin: 0 auto; }
+        .tab-content.active { display: block; animation: fadeIn 0.2s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media(min-width: 768px) {
+            #view-order { max-width: 1080px; }
+        }
+
+        .card { 
+            background: var(--card); 
+            border-radius: var(--radius); 
+            padding: 18px; 
+            box-shadow: var(--shadow-sm); 
+            border: 1px solid var(--border); 
+            margin-bottom: 14px; 
+        }
+
+        h2 { 
+            font-size: 1.05rem; 
+            font-weight: 700;
+            margin-bottom: 14px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            gap: 8px; 
+        }
+
+        .order-layout-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        @media (min-width: 768px) {
+            .order-layout-grid {
+                display: grid;
+                grid-template-columns: 1.25fr 0.75fr;
+                gap: 20px;
+                align-items: start;
+            }
+            .order-right-pane {
+                position: sticky;
+                top: 80px;
+            }
+        }
+
+        .dashboard-meta-hub {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            color: white;
+            margin-bottom: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-md);
+        }
+
+        .meta-group { display: flex; align-items: center; gap: 8px; }
+        .meta-badge-label { font-size: 0.72rem; text-transform: uppercase; color: #94a3b8; font-weight: 700; }
+        .meta-select {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 0.8rem;
+            outline: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .meta-select option { background: #1e293b; color: white; }
+
+        .category-bar {
+            display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 10px 2px; margin-bottom: 12px; align-items: center;
+            -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        }
+        .category-bar::-webkit-scrollbar { display: none; }
+        .cat-chip {
+            padding: 8px 16px; border-radius: 30px; background: #e2e8f0; color: #475569;
+            font-size: 0.82rem; font-weight: 600; white-space: nowrap; cursor: pointer; border: 1px solid transparent;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); display: inline-flex; align-items: center;
+        }
+        .cat-chip:hover { background: #cbd5e1; }
+        .cat-chip.active {
+            background: var(--primary); color: white; border-color: var(--primary-hover);
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+        }
+
+        .filter-container {
+            display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid var(--border);
+        }
+        .filter-row { display: flex; gap: 8px; align-items: center; }
+        .filter-select { flex: 1; padding: 9px 12px; border: 1px solid var(--border-hover); border-radius: 8px; font-size: 0.85rem; background: white; font-weight: 500; outline: none; }
+        .custom-date-box { display: none; gap: 8px; align-items: center; }
+        .custom-date-box input { flex: 1; padding: 8px 10px; border: 1px solid var(--border-hover); border-radius: 8px; font-size: 0.82rem; }
+
+        .analytics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+        .analytics-card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; box-shadow: var(--shadow-sm); }
+        .analytics-card h4 { font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+        .analytics-card .amount { font-size: 1.05rem; font-weight: 800; margin-top: 4px; }
+
+        .product-summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 12px; }
+        .product-stat-card { background: var(--primary-light); border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px; font-size: 0.78rem; }
+        .product-stat-card .p-name { font-weight: 700; color: #1e40af; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 3px; }
+
+        .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 14px; }
+        @media(min-width: 480px) { .menu-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; } }
+        
+        .menu-item { 
+            background: white; border: 1px solid var(--border); border-radius: 12px; padding: 10px; 
+            text-align: center; display: flex; flex-direction: column; justify-content: space-between; position: relative; 
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .menu-item:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        .menu-item img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 8px; margin-bottom: 8px; background: #f1f5f9; }
+        .menu-item h4 { font-size: 0.88rem; font-weight: 700; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-main); }
+        .menu-item .cat-label { font-size: 0.68rem; color: var(--text-muted); font-weight: 600; margin-bottom: 4px; text-transform: uppercase; }
+        
+        .price-badge-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; align-items: center; }
+        .price-single { font-weight: 800; color: var(--primary); font-size: 0.95rem; }
+        .deal-tag {
+            font-size: 0.70rem; font-weight: 700; color: #6d28d9; background: #ede9fe;
+            border: 1px solid #ddd6fe; border-radius: 6px; padding: 2px 6px; display: inline-block;
+            max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        
+        .qty-controls { display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .btn-qty { 
+            min-width: 32px; height: 32px; border: none; border-radius: 8px; 
+            background: var(--primary); color: white; font-weight: 700; font-size: 0.9rem; 
+            cursor: pointer; display: flex; align-items: center; justify-content: center; 
+            transition: all 0.15s; 
+        }
+        .btn-qty:hover { background: var(--primary-hover); }
+        .btn-qty:active { transform: scale(0.92); }
+
+        .btn-hdr-action {
+            width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 10px;
+            background: #ffffff; color: #334155; font-size: 0.95rem; display: inline-flex;
+            align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-sm);
+        }
+        .btn-hdr-action:hover { background: #f1f5f9; color: var(--primary); border-color: var(--border-hover); }
+
+        .item-actions { position: absolute; top: 6px; right: 6px; display: none; gap: 4px; background: rgba(255,255,255,0.95); border-radius: 6px; padding: 3px; box-shadow: var(--shadow-md); z-index: 10; }
+        .show-edit-controls .item-actions { display: flex !important; }
+        .btn-icon { background: none; border: none; font-size: 0.9rem; padding: 3px 6px; cursor: pointer; border-radius: 4px; transition: background 0.15s; }
+        .btn-icon:hover { background: #f1f5f9; }
+
+        /* Cart */
+        .cart-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 12px; font-size: 0.88rem; }
+        .cart-table th, .cart-table td { padding: 9px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+        .cart-table th { font-weight: 700; color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; }
+        .cart-table th:last-child, .cart-table td:last-child { text-align: right; }
+        .cart-deal-subtext { font-size: 0.72rem; color: #7c3aed; font-weight: 600; display: block; margin-top: 1px; }
+
+        .bill-summary { background: #f8fafc; padding: 14px; border-radius: 10px; font-size: 0.88rem; border: 1px solid var(--border); }
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center; }
+        .summary-row label { font-weight: 600; color: #334155; }
+        .summary-row input { width: 95px; padding: 7px 10px; border: 1px solid var(--border-hover); border-radius: 6px; text-align: right; font-size: 0.85rem; font-weight: 600; outline: none; }
+
+        .pay-options { display: flex; gap: 8px; margin: 12px 0; }
+        .pay-option { flex: 1; padding: 10px 6px; border: 2px solid var(--border); border-radius: 10px; text-align: center; cursor: pointer; font-weight: 700; font-size: 0.82rem; transition: all 0.15s ease; background: white; }
+        .pay-option.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+
+        .btn { width: 100%; padding: 13px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 0.92rem; margin-top: 8px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: var(--shadow-sm); }
+        .btn:active { transform: scale(0.98); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: var(--success-hover); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-secondary { background: #64748b; color: white; }
+        .btn-secondary:hover { background: #475569; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: var(--danger-hover); }
+
+        .input-group { display: flex; flex-direction: column; gap: 9px; margin-bottom: 12px; }
+        .input-group input, .input-group select { padding: 10px 12px; border: 1px solid var(--border-hover); border-radius: 8px; width: 100%; font-size: 0.88rem; background: white; outline: none; }
+        .input-group input:focus, .input-group select:focus { border-color: var(--primary); }
+
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; }
+        .history-table { width: 100%; border-collapse: collapse; min-width: 550px; font-size: 0.82rem; }
+        .history-table th, .history-table td { padding: 10px 8px; border: 1px solid var(--border); text-align: left; }
+        .history-table th { background: #f8fafc; font-weight: 700; color: #475569; }
+
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+        .badge-cash { background: #dcfce7; color: #15803d; }
+        .badge-online { background: #e0e7ff; color: #4338ca; }
+        .badge-split { background: #fef3c7; color: #b45309; }
+
+        .cust-section { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-top: 12px; }
+        .cust-section h4 { font-size: 0.88rem; font-weight: 700; margin-bottom: 10px; color: #334155; }
+        .cust-grid { display: flex; flex-direction: column; gap: 10px; }
+        .cust-field { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+        .cust-field label { font-size: 0.78rem; font-weight: 600; color: #64748b; }
+        .cust-field input { width: 100%; padding: 10px 12px; border: 1px solid var(--border-hover); border-radius: 8px; font-size: 0.88rem; background: white; outline: none; }
+
+        .gender-checkbox-container {
+            display: flex; gap: 18px; align-items: center; font-size: 0.85rem; color: #334155;
+            background: white; padding: 10px 12px; border: 1px solid var(--border-hover); border-radius: 8px; width: 100%;
+        }
+        .gender-checkbox-container label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 500; }
+
+        .upi-qr-card {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: #ffffff; border: 2px dashed #3b82f6; border-radius: 12px; padding: 16px; margin-top: 12px; text-align: center;
+            box-shadow: var(--shadow-sm);
+        }
+        @media(min-width: 768px) {
+            .upi-qr-card { margin-top: 0; padding: 24px 16px; }
+        }
+        .upi-qr-card #qrcode-box { background: #ffffff; padding: 10px; border-radius: 10px; box-shadow: var(--shadow-md); min-height: 140px; display: flex; align-items: center; justify-content: center; }
+
+        /* Generic & Confirm Modals */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); justify-content: center; align-items: center; z-index: 1000; padding: 16px; }
+        .modal-content { background: white; padding: 20px; border-radius: 16px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: scaleUp 0.15s ease-out; }
+        @keyframes scaleUp { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+
+        .export-option-btn { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px; border: 1px solid var(--border); border-radius: 10px; background: #f8fafc; font-size: 0.9rem; font-weight: 700; cursor: pointer; margin-bottom: 8px; transition: all 0.2s; }
+        .export-option-btn:hover { background: #f1f5f9; border-color: var(--border-hover); }
+
+        /* Bottom Nav */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 65px; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(10px); display: flex; border-top: 1px solid var(--border); box-shadow: 0 -4px 12px rgba(0,0,0,0.03); z-index: 100; }
+        .nav-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: #64748b; background: none; border: none; cursor: pointer; transition: all 0.15s; }
+        .nav-tab.active { color: var(--primary); border-top: 3px solid var(--primary); background: #f8fafc; }
+        .nav-tab span { font-size: 1.25rem; margin-bottom: 2px; }
+
+        .header-right { display: flex; align-items: center; gap: 8px; }
+
+        /* Toast */
+        #toast-notification {
+            position: fixed; bottom: 78px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: #0f172a; color: #ffffff; padding: 10px 20px; border-radius: 30px;
+            font-size: 0.85rem; font-weight: 700; display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); opacity: 0; pointer-events: none;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2000;
+        }
+        #toast-notification.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* Offscreen export containers */
+        #export-wrapper, #analytics-export-wrapper { position: absolute; left: -9999px; top: -9999px; width: 800px; background: #ffffff; padding: 20px; font-family: sans-serif; }
+        #export-wrapper table, #analytics-export-wrapper table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
+        #export-wrapper th, #export-wrapper td, #analytics-export-wrapper th, #analytics-export-wrapper td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; }
+        #export-wrapper th, #analytics-export-wrapper th { background: #f1f5f9; }
+
+        #thermal-receipt { display: none; }
+
+        @media print {
+            @page { size: 58mm auto; margin: 0; }
+            html, body { width: 58mm; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+            body * { visibility: hidden; }
+            #thermal-receipt, #thermal-receipt * { visibility: visible; }
+            #thermal-receipt { 
+                display: block !important; position: absolute; left: 0; top: 0; width: 58mm; padding: 2mm 1mm; 
+                font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #000; box-sizing: border-box; 
+            }
+            #thermal-receipt h3, #thermal-receipt p { text-align: center; margin: 2px 0; }
+            #thermal-receipt img { display: block; margin: 0 auto 4px auto; max-width: 35px; height: auto; }
+            #thermal-receipt .divider { border-bottom: 1px dashed #000; margin: 3px 0; }
+            #thermal-receipt table { width: 100%; font-size: 10px; border-collapse: collapse; }
+            #thermal-receipt table td { padding: 1px 0; }
+            #thermal-receipt table td:last-child { text-align: right; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="branding">
+            <img id="app-logo" src="icon-192.png" alt="DA POS Logo">
+            <div>
+                <h1 id="app-name">DA POS</h1>
+                <p id="app-slogan">Fast Mobile Billing</p>
+            </div>
+        </div>
+        <div class="header-right">
+            <button id="btn-refresh-unfreeze" class="btn-hdr-action" onclick="appUnfreezeRefresh()" title="Refresh & Reset Views">
+                <span>🔄</span>
+            </button>
+            <button class="btn-hdr-action" onclick="openBrandingModal()" title="Store Settings">
+                <span>⚙️</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- TOAST POPUP -->
+    <div id="toast-notification">
+        <span id="toast-icon">✅</span> <span id="toast-message">App Active</span>
+    </div>
+
+    <!-- CONFIRMATION MODAL POPUP -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content" style="max-width: 380px; text-align: center;">
+            <div style="font-size: 2.5rem; margin-bottom: 8px;">⚠️</div>
+            <h3 id="confirm-modal-title" style="font-size: 1.1rem; font-weight: 800; margin-bottom: 8px;">Confirm Action</h3>
+            <p id="confirm-modal-msg" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">Are you sure you want to proceed?</p>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" style="margin-top:0;" onclick="closeConfirmModal()">Cancel</button>
+                <button id="confirm-modal-ok-btn" class="btn btn-danger" style="margin-top:0;" onclick="proceedConfirmAction()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 1: MENU -->
+    <div id="view-menu" class="tab-content active">
+        <div class="card">
+            <h2>
+                <span>Menu Items</span>
+                <button class="btn-qty" style="width:auto; padding:6px 14px; font-size:0.82rem;" onclick="toggleAddMenu()">+ Add Item</button>
+            </h2>
+
+            <!-- Category Selector Chips -->
+            <div class="category-bar" id="category-bar-container"></div>
+
+            <!-- Add/Edit Item Form -->
+            <div id="menu-form" style="display:none; margin-bottom:14px; background:#f8fafc; padding:12px; border-radius:10px; border:1px solid var(--border);">
+                <input type="hidden" id="edit-item-id">
+                <div class="input-group">
+                    <input type="text" id="item-name" placeholder="Item Name">
+                    
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <div>
+                            <label style="font-size:0.75rem; font-weight:700; color:#334155; display:block; margin-bottom:3px;">Normal Rate (₹):</label>
+                            <input type="number" id="item-price" placeholder="Normal Rate ₹" min="0" step="any" oninput="refreshBuy2LinkList()">
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem; font-weight:700; color:#7c3aed; display:block; margin-bottom:3px;">Buy 2 Offer Price (Total ₹):</label>
+                            <input type="number" id="item-price-buy2" placeholder="Optional (e.g. 180)" min="0" step="any" style="border-color:#ddd6fe; background:#faf5ff;" oninput="refreshBuy2LinkList()">
+                        </div>
+                    </div>
+                    <small style="font-size:0.72rem; color:#64748b; margin-top:-4px;">* Buy 2 Offer is optional. If empty, items sell at normal rate.</small>
+
+                    <!-- Link Buy 2 Offer with other same-price items -->
+                    <div id="buy2-link-box" style="display:none; background:#faf5ff; border:1px solid #ddd6fe; border-radius:8px; padding:8px 10px;">
+                        <label style="font-size:0.75rem; font-weight:700; color:#7c3aed; display:block; margin-bottom:5px;">🔗 Link Buy 2 Offer With (same price items):</label>
+                        <div id="buy2-link-list" style="display:flex; flex-direction:column; gap:5px; max-height:140px; overflow-y:auto;"></div>
+                        <small style="font-size:0.7rem; color:#64748b; display:block; margin-top:5px;">* Linked items share one Buy 2 offer (e.g. 1 of this + 1 of linked item = Buy 2 price). Linked items will use this same Buy 2 price.</small>
+                    </div>
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                        <label style="font-size: 0.78rem; color:#64748b; font-weight:700;">Category:</label>
+                        <button type="button" onclick="showInlineCategoryInput()" style="background:none; border:none; color:var(--primary); font-size:0.75rem; font-weight:700; cursor:pointer;">+ Add Category</button>
+                    </div>
+                    
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <select id="item-category-select" style="flex:1;"></select>
+                        <button type="button" onclick="deleteSelectedCategoryInline()" title="Delete Selected Category" style="background:#fef2f2; border:1px solid #fca5a5; color:var(--danger); font-size:0.8rem; font-weight:700; padding:10px 12px; border-radius:8px; cursor:pointer;">🗑️ Delete</button>
+                    </div>
+
+                    <div id="inline-cat-box" style="display:none; gap:6px; margin-top:4px;">
+                        <input type="text" id="item-custom-category" placeholder="Enter New Category Name" style="font-size:0.85rem;">
+                        <button class="btn-qty" style="width:auto; padding:0 12px; font-size:0.78rem; background:var(--success);" onclick="addInlineCategory()">Add</button>
+                        <button class="btn-qty" style="width:auto; padding:0 10px; font-size:0.78rem; background:#64748b;" onclick="hideInlineCategoryInput()">Cancel</button>
+                    </div>
+
+                    <label style="font-size: 0.75rem; color:#64748b; margin-top:2px; font-weight:600;">Item Image (Optional):</label>
+                    <input type="file" id="item-image" accept="image/*" style="font-size:0.8rem;">
+                </div>
+                <button class="btn btn-primary" onclick="saveMenuItem()" style="margin-top:0;">Save Item</button>
+            </div>
+
+            <div class="menu-grid" id="menu-container"></div>
+            <button class="btn btn-primary" style="margin-top: 10px;" onclick="goToOrderView()">🛒 Check out</button>
+        </div>
+    </div>
+
+    <!-- TAB 2: CURRENT ORDER -->
+    <div id="view-order" class="tab-content">
+        <div class="card">
+            <button class="btn btn-secondary" style="margin-bottom: 12px;" onclick="goToMenuView()">📋 Back To Menu</button>
+
+            <h2>
+                <span>Current Order</span>
+                <span id="next-bill-no" style="font-size: 0.85rem; color: var(--primary); font-weight: 800;">Bill #: ---</span>
+            </h2>
+
+            <div class="order-layout-grid">
+                <!-- Left Pane -->
+                <div class="order-left-pane">
+                    <div class="table-responsive">
+                        <table class="cart-table">
+                            <thead>
+                                <tr><th>Item</th><th>Qty</th><th>Rate Plan</th><th>Total</th></tr>
+                            </thead>
+                            <tbody id="cart-tbody">
+                                <tr><td colspan="4" style="text-align:center; color:#94a3b8; padding: 20px 0;">No items added</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="bill-summary">
+                        <div class="summary-row">
+                            <span>Sub Total:</span>
+                            <strong id="sub-total">₹ 0.00</strong>
+                        </div>
+                        <div class="summary-row" id="discount-row">
+                            <label>Discount (%):</label>
+                            <input type="number" id="discount-pct" value="0" min="0" max="100" step="any" inputmode="decimal" oninput="calculateBill()">
+                        </div>
+                        <div class="summary-row" id="discount-flat-row" style="display:none;">
+                            <label>Discount (₹ Flat):</label>
+                            <input type="number" id="discount-flat" value="0" min="0" step="any" inputmode="decimal" oninput="calculateBill()">
+                        </div>
+                        <div class="summary-row" id="discount-total-row" style="display:none; color:#b45309; font-size:0.82rem;">
+                            <span>Total Discount:</span>
+                            <strong id="discount-total-amt">- ₹ 0.00</strong>
+                        </div>
+
+                        <!-- GST BREAKDOWN -->
+                        <div id="gst-breakdown-box" style="display:none; border-top:1px dashed #cbd5e1; margin-top:8px; padding-top:8px;">
+                            <div class="summary-row" style="color:#64748b; font-size:0.82rem;">
+                                <span>CGST (<span id="cgst-rate-lbl">0</span>%):</span>
+                                <span id="cgst-amt">₹ 0.00</span>
+                            </div>
+                            <div class="summary-row" style="color:#64748b; font-size:0.82rem;">
+                                <span>SGST (<span id="sgst-rate-lbl">0</span>%):</span>
+                                <span id="sgst-amt">₹ 0.00</span>
+                            </div>
+                            <div class="summary-row" style="font-weight:700; font-size:0.85rem; color:#334155;">
+                                <span>Total GST (<span id="total-gst-rate-lbl">0</span>%):</span>
+                                <span id="total-gst-amt">₹ 0.00</span>
+                            </div>
+                        </div>
+
+                        <div class="summary-row" style="font-size: 1.05rem; font-weight:800; color: var(--primary); margin-top: 8px; border-top:1px solid #cbd5e1; padding-top:6px;">
+                            <span>Grand Total:</span>
+                            <span id="grand-total">₹ 0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="pay-options">
+                        <div class="pay-option active" id="pay-cash" onclick="setPaymentMode('Cash')">💵 Cash</div>
+                        <div class="pay-option" id="pay-online" onclick="setPaymentMode('Online')">💳 Online</div>
+                        <div class="pay-option" id="pay-split" onclick="setPaymentMode('Split')">🔄 Split</div>
+                    </div>
+
+                    <div id="payment-calc-box" class="bill-summary" style="margin-top: 8px;">
+                        <div id="cash-mode-fields">
+                            <div class="summary-row">
+                                <label>Cash Received:</label>
+                                <input type="number" id="cash-given" placeholder="₹ 0" oninput="calculateBalance()">
+                            </div>
+                            <div class="summary-row">
+                                <span>Balance:</span>
+                                <strong id="cash-balance" style="color:var(--danger);">₹ 0.00</strong>
+                            </div>
+                        </div>
+
+                        <div id="split-mode-fields" style="display:none;">
+                            <div class="summary-row">
+                                <label>Cash Part:</label>
+                                <input type="number" id="split-cash" placeholder="₹ 0" oninput="calculateSplit()">
+                            </div>
+                            <div class="summary-row">
+                                <label>Online Part:</label>
+                                <input type="number" id="split-online" placeholder="₹ 0" readonly style="background:#e2e8f0;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Customer Info Fields -->
+                    <div id="customer-info-container" class="cust-section">
+                        <h4>👤 Customer Details (Optional)</h4>
+                        <div class="cust-grid">
+                            <div class="cust-field">
+                                <label for="cust-name">1. Customer Name</label>
+                                <input type="text" id="cust-name" placeholder="Enter Name">
+                            </div>
+
+                            <div class="cust-field">
+                                <label for="cust-phone">2. Mobile Number</label>
+                                <input type="tel" id="cust-phone" maxlength="10" placeholder="10-digit number" oninput="this.value = this.value.replace(/[^0-9]/g, ''); syncCustToPhone(this.value)">
+                            </div>
+                            
+                            <div class="cust-field">
+                                <label>3. Gender</label>
+                                <div class="gender-checkbox-container">
+                                    <label><input type="checkbox" name="cust-gender-cb" value="Male" onclick="selectGenderCheckbox(this)"> Male</label>
+                                    <label><input type="checkbox" name="cust-gender-cb" value="Female" onclick="selectGenderCheckbox(this)"> Female</label>
+                                    <label><input type="checkbox" name="cust-gender-cb" value="Other" onclick="selectGenderCheckbox(this)"> Other</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Current Order Action Buttons -->
+                    <button class="btn btn-success" id="btn-action-whatsapp" onclick="processOrder('whatsapp')">💬 Send WhatsApp Bill</button>
+                    <button class="btn btn-primary" id="btn-action-print" onclick="processOrder('print')">🖨️ Print Receipt</button>
+                    <button class="btn btn-secondary" id="btn-action-save" onclick="processOrder('save')">💾 Save Bill Only</button>
+                </div>
+
+                <!-- Right Pane: QR Code -->
+                <div class="order-right-pane">
+                    <div id="upi-qr-container" class="upi-qr-card" style="display:none;">
+                        <h4 style="font-size: 0.95rem; color: #1e40af; margin-bottom: 10px; font-weight:700;">📱 Scan QR Code to Pay</h4>
+                        <div id="qrcode-box"></div>
+                        <div style="font-size: 0.8rem; color: #475569; margin-top: 10px; font-weight: 600;">
+                            UPI ID: <span id="display-upi-id" style="color: var(--primary);">---</span>
+                        </div>
+                        <div style="font-size: 0.95rem; font-weight: 800; color: var(--success); margin-top: 4px;">
+                            Amount: <span id="display-qr-amount">₹ 0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 3: SALE HISTORY & LIVE DASHBOARD -->
+    <div id="view-history" class="tab-content">
+        <div class="dashboard-meta-hub">
+            <div class="meta-group">
+                <span style="font-size:1.2rem;">🏬</span>
+                <div>
+                    <div class="meta-badge-label">Active Store</div>
+                    <select id="dash-store-select" class="meta-select" onchange="handleStoreChange(this.value)"></select>
+                </div>
+            </div>
+
+            <div class="meta-group">
+                <span style="font-size:1.2rem;">👤</span>
+                <div>
+                    <div class="meta-badge-label">Staff & Role</div>
+                    <select id="dash-staff-select" class="meta-select" onchange="handleStaffChange(this.value)"></select>
+                </div>
+            </div>
+
+            <button class="btn-qty" style="width:auto; padding:6px 12px; font-size:0.75rem; background:#3b82f6; border-radius:6px;" onclick="openStaffModal()">
+                + Manage Staff
+            </button>
+        </div>
+
+        <!-- Live Analytics Card -->
+        <div class="card">
+            <h2>
+                <span>⚡ Live Analytics Dashboard</span>
+                <button class="btn-qty" style="width:auto; padding:6px 12px; font-size:0.8rem; background:var(--primary);" onclick="openAnalyticsPrintModal()">🖨️ Print / Export Analytics</button>
+            </h2>
+            
+            <div class="filter-container">
+                <div class="filter-row">
+                    <label style="font-size:0.82rem; font-weight:700;">Period:</label>
+                    <select id="date-filter-preset" class="filter-select" onchange="handleFilterChange()">
+                        <option value="today" selected>Today</option>
+                        <option value="yesterday">Yesterday</option>
+                        <option value="this_week">This Week</option>
+                        <option value="this_month">This Month</option>
+                        <option value="prev_month">Previous Month</option>
+                        <option value="custom">Custom Date Range</option>
+                    </select>
+                </div>
+                <div id="custom-date-box" class="custom-date-box">
+                    <input type="date" id="filter-from-date" onchange="renderHistory()">
+                    <span style="font-size:0.78rem; font-weight:600;">to</span>
+                    <input type="date" id="filter-to-date" onchange="renderHistory()">
+                </div>
+            </div>
+
+            <div class="analytics-grid">
+                <div class="analytics-card">
+                    <h4>Total Sales</h4>
+                    <div class="amount" id="stat-total-sales" style="color:var(--primary);">₹ 0</div>
+                </div>
+                <div class="analytics-card">
+                    <h4>Cash Recd.</h4>
+                    <div class="amount" id="stat-cash-sales" style="color:var(--success);">₹ 0</div>
+                </div>
+                <div class="analytics-card">
+                    <h4>Online Recd.</h4>
+                    <div class="amount" id="stat-online-sales" style="color:#4338ca;">₹ 0</div>
+                </div>
+            </div>
+
+            <h3 style="font-size:0.8rem; color:#64748b; font-weight:700; margin-bottom:8px; text-transform:uppercase;">PRODUCT-WISE SALES</h3>
+            <div class="product-summary-grid" id="product-stats-container">
+                <div style="font-size:0.75rem; color:#94a3b8; grid-column: 1/-1;">No product sales in this period</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>
+                <span>Sales History</span>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button id="btn-export-excel" class="btn-qty" style="width:auto; padding:6px 10px; font-size:0.78rem; background:var(--success);" onclick="exportToExcel()">📊 Excel</button>
+                    <button id="btn-export-pdf" class="btn-qty" style="width:auto; padding:6px 10px; font-size:0.78rem; background:#7c3aed;" onclick="exportToPDF()">📄 PDF</button>
+                    <button id="btn-export-img" class="btn-qty" style="width:auto; padding:6px 10px; font-size:0.78rem; background:#0284c7;" onclick="exportToImage()">🖼️ Image</button>
+                    <button class="btn-qty" style="width:auto; padding:6px 10px; font-size:0.78rem; background:var(--danger);" onclick="confirmMasterDelete()">🗑️ Clear All</button>
+                </div>
+            </h2>
+
+            <div class="table-responsive">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Bill #</th>
+                            <th>Date</th>
+                            <th>Staff (Role)</th>
+                            <th>Customer</th>
+                            <th>Items</th>
+                            <th>Total</th>
+                            <th>Mode</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-tbody">
+                        <tr><td colspan="8" style="text-align:center; color:#94a3b8; padding: 20px 0;">No sales history found</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM MOBILE TABS BAR -->
+    <div class="bottom-nav">
+        <button class="nav-tab active" onclick="switchView('menu', this)">
+            <span>📋</span> Menu
+        </button>
+        <button class="nav-tab" onclick="switchView('order', this)">
+            <span>🛒</span> Current Order
+        </button>
+        <button class="nav-tab" onclick="switchView('history', this)">
+            <span>⚡</span> Dashboard
+        </button>
+    </div>
+
+    <!-- STAFF & ROLE MANAGEMENT MODAL -->
+    <div id="staff-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-bottom:12px; font-size:1.05rem; font-weight:800;">Staff Management</h3>
+            
+            <div class="input-group">
+                <input type="text" id="new-staff-name" placeholder="Staff Name (e.g. Ramesh)">
+                <input type="tel" id="new-staff-phone" placeholder="Contact Mobile (Optional)">
+                <label style="font-size:0.75rem; font-weight:700; color:#64748b;">Role:</label>
+                <select id="new-staff-role">
+                    <option value="Cashier">Cashier</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Supervisor">Supervisor</option>
+                    <option value="Admin">Admin</option>
+                </select>
+                <button class="btn btn-primary" onclick="addNewStaffMember()" style="margin-top:4px;">+ Add Staff Member</button>
+            </div>
+
+            <hr style="margin: 14px 0; border: none; border-top: 1px solid var(--border);">
+            <h4 style="font-size: 0.85rem; font-weight:700; margin-bottom: 8px;">Active Staff Roster</h4>
+            <div id="staff-roster-list" style="display:flex; flex-direction:column; gap:6px; max-height:160px; overflow-y:auto; margin-bottom:12px;"></div>
+
+            <button class="btn btn-secondary" onclick="closeStaffModal()">Close</button>
+        </div>
+    </div>
+
+    <!-- PRINT ANALYTICS POPUP MODAL -->
+    <div id="analytics-print-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-bottom:6px; font-size:1.05rem; text-align:center; font-weight:800;">Print / Export Analytics</h3>
+            <p style="font-size:0.78rem; color:#64748b; text-align:center; margin-bottom:14px;">Select format:</p>
+            
+            <button class="export-option-btn" onclick="triggerAnalyticsExport('pdf')">
+                <span style="font-size:1.2rem;">📄</span> PDF Document
+            </button>
+            <button class="export-option-btn" onclick="triggerAnalyticsExport('image')">
+                <span style="font-size:1.2rem;">🖼️</span> Image File (PNG)
+            </button>
+            <button class="export-option-btn" onclick="triggerAnalyticsExport('excel')">
+                <span style="font-size:1.2rem;">📊</span> Excel Sheet (.xlsx)
+            </button>
+            <button class="export-option-btn" onclick="triggerAnalyticsExport('print')">
+                <span style="font-size:1.2rem;">🖨️</span> Thermal Print
+            </button>
+
+            <button class="btn btn-secondary" onclick="closeAnalyticsPrintModal()" style="margin-top:8px;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- SETTINGS & BRANDING MODAL -->
+    <div id="branding-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-bottom:10px; font-size: 1.05rem; font-weight:800;">Settings & Customizations</h3>
+            
+            <div class="input-group">
+                <label style="font-size:0.75rem; font-weight:700;">Store Name:</label>
+                <input type="text" id="brand-name-input">
+                <label style="font-size:0.75rem; font-weight:700;">Slogan:</label>
+                <input type="text" id="brand-slogan-input">
+                
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label style="font-size:0.75rem; font-weight:700;">UPI ID (QR Code):</label>
+                    <label style="font-size:0.75rem; font-weight:700; cursor:pointer;">
+                        <input type="checkbox" id="cfg-enable-upi-qr"> Enable QR Code
+                    </label>
+                </div>
+                <input type="text" id="brand-upi-input" placeholder="e.g. storename@upi">
+                
+                <label style="font-size:0.75rem; font-weight:700;">GSTIN (Optional):</label>
+                <input type="text" id="store-gstin-input" placeholder="e.g. 33AAAAA0000A1Z5">
+                <label style="font-size:0.75rem; font-weight:700;">Store Logo:</label>
+                <input type="file" id="brand-logo-file" accept="image/*" style="font-size:0.8rem;">
+            </div>
+
+            <hr style="margin: 10px 0; border: none; border-top: 1px solid #e2e8f0;">
+            <h4 style="font-size: 0.85rem; font-weight:700; margin-bottom: 6px;">📍 Store Address & Contact</h4>
+            <div class="input-group">
+                <input type="text" id="store-address-input" placeholder="Address">
+                <div style="display:flex; gap:6px;">
+                    <input type="text" id="store-city-input" placeholder="City">
+                    <input type="text" id="store-pincode-input" placeholder="Pincode">
+                </div>
+                <input type="text" id="store-state-input" placeholder="State">
+                <input type="text" id="store-phone-input" placeholder="Store Phone Number">
+                <input type="email" id="store-email-input" placeholder="Store Email ID (Optional)">
+            </div>
+
+            <!-- GST Settings -->
+            <hr style="margin: 10px 0; border: none; border-top: 1px solid #e2e8f0;">
+            <h4 style="font-size: 0.85rem; font-weight:700; margin-bottom: 6px;">🧾 Tax (GST) Settings</h4>
+            <div style="display:flex; flex-direction:column; gap:8px; font-size:0.82rem;">
+                <label><input type="checkbox" id="cfg-enable-gst" onchange="toggleGstSettingsInput()"> Enable GST Calculation</label>
+                <div id="gst-rate-box" style="display:flex; align-items:center; gap:8px;">
+                    <label style="font-weight:700;">GST Rate (%):</label>
+                    <input type="number" id="cfg-gst-rate" placeholder="e.g. 5, 12, 18" style="width:100px; padding:6px; border:1px solid #cbd5e1; border-radius:6px;">
+                </div>
+            </div>
+
+            <hr style="margin: 10px 0; border: none; border-top: 1px solid #e2e8f0;">
+            <h4 style="font-size: 0.85rem; font-weight:700; margin-bottom: 6px;">Order Settings</h4>
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:0.82rem;">
+                <label><input type="checkbox" id="cfg-show-customer"> Enable Customer Details Box</label>
+                <label><input type="checkbox" id="cfg-print-cust-on-bill"> Print Customer Info On Thermal Bill</label>
+                <label><input type="checkbox" id="cfg-show-discount"> Enable Discount Input %</label>
+                <label><input type="checkbox" id="cfg-show-discount-flat"> Enable Discount Input Amount (₹ Flat)</label>
+            </div>
+
+            <!-- Current Order Action Buttons Settings -->
+            <hr style="margin: 10px 0; border: none; border-top: 1px solid #e2e8f0;">
+            <h4 style="font-size: 0.85rem; font-weight:700; margin-bottom: 6px;">Current Order Action Buttons</h4>
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:0.82rem;">
+                <label><input type="checkbox" id="cfg-show-whatsapp"> Show WhatsApp Button</label>
+                <label><input type="checkbox" id="cfg-show-print"> Show Print Button</label>
+                <label><input type="checkbox" id="cfg-show-save"> Show Save Only Button</label>
+            </div>
+
+            <!-- Sales History Export Options Settings -->
+            <hr style="margin: 10px 0; border: none; border-top: 1px solid #e2e8f0;">
+            <h4 style="font-size: 0.85rem; font-weight:700; margin-bottom: 6px;">Sales History Export Options</h4>
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:0.82rem;">
+                <label><input type="checkbox" id="cfg-show-exp-excel"> Show Excel Export</label>
+                <label><input type="checkbox" id="cfg-show-exp-pdf"> Show PDF Export</label>
+                <label><input type="checkbox" id="cfg-show-exp-img"> Show Image Export</label>
+            </div>
+
+            <hr style="margin: 10px 0; border: none; border-top: 1px solid #e2e8f0;">
+            <h4 style="font-size: 0.85rem; font-weight:700; margin-bottom: 6px;">Manage Categories</h4>
+            <div style="display:flex; gap:6px; margin-bottom:8px;">
+                <input type="text" id="new-cat-input" placeholder="New Category Name" style="flex:1; padding:7px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem;">
+                <button class="btn-qty" style="width:auto; padding:0 12px;" onclick="addCategoryFromSettings()">+ Add</button>
+            </div>
+            <div id="categories-list-container" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px;"></div>
+
+            <div style="display:flex; gap:8px; margin-top:16px;">
+                <button class="btn btn-primary" onclick="saveBranding()">Save Settings</button>
+                <button class="btn btn-secondary" onclick="closeBrandingModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Export Wrappers -->
+    <div id="export-wrapper">
+        <div style="text-align: center; margin-bottom: 15px;">
+            <h2 id="exp-header-title" style="margin:0; font-size: 18px; color: #1e293b;">Store Name</h2>
+            <p id="exp-header-sub" style="margin:2px 0 0 0; font-size: 12px; color: #64748b;">Sales Report</p>
+            <p id="exp-header-addr" style="margin:2px 0 0 0; font-size: 10px; color: #64748b;"></p>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Bill #</th>
+                    <th>Date & Time</th>
+                    <th>Staff (Role)</th>
+                    <th>Customer Name</th>
+                    <th>Phone</th>
+                    <th>Gender</th>
+                    <th>Items</th>
+                    <th>Subtotal</th>
+                    <th id="exp-th-discount">Discount</th>
+                    <th id="exp-th-cgst">CGST</th>
+                    <th id="exp-th-sgst">SGST</th>
+                    <th id="exp-th-gst">Total GST</th>
+                    <th>Grand Total</th>
+                    <th>Mode</th>
+                </tr>
+            </thead>
+            <tbody id="export-tbody"></tbody>
+        </table>
+    </div>
+
+    <div id="analytics-export-wrapper">
+        <div style="text-align: center; margin-bottom: 15px;">
+            <h2 id="analytics-exp-title" style="margin:0; font-size: 18px; color: #1e293b;">Store Name</h2>
+            <p id="analytics-exp-subtitle" style="margin:2px 0 0 0; font-size: 12px; color: #64748b;">Live Analytics & Product Sales Report</p>
+            <p id="analytics-exp-address" style="margin:2px 0 0 0; font-size: 10px; color: #64748b;"></p>
+        </div>
+        <div style="display: flex; justify-content: space-around; background: #f8fafc; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 15px; text-align: center;">
+            <div>
+                <div style="font-size: 10px; color: #64748b;">TOTAL SALES</div>
+                <div id="analytics-exp-total" style="font-size: 14px; font-weight: bold; color: #2563eb;">₹ 0.00</div>
+            </div>
+            <div>
+                <div style="font-size: 10px; color: #64748b;">CASH RECD.</div>
+                <div id="analytics-exp-cash" style="font-size: 14px; font-weight: bold; color: #16a34a;">₹ 0.00</div>
+            </div>
+            <div>
+                <div style="font-size: 10px; color: #64748b;">ONLINE RECD.</div>
+                <div id="analytics-exp-online" style="font-size: 14px; font-weight: bold; color: #4338ca;">₹ 0.00</div>
+            </div>
+        </div>
+        <h3 style="font-size: 13px; color: #334155; margin-bottom: 6px;">PRODUCT SALES SUMMARY</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Quantity Sold</th>
+                    <th>Total Revenue (₹)</th>
+                </tr>
+            </thead>
+            <tbody id="analytics-exp-tbody"></tbody>
+        </table>
+    </div>
+
+    <!-- Thermal Receipt Print Container -->
+    <div id="thermal-receipt"></div>
+
+    <script>
+        /* =========================================================
+           LOCAL STORAGE INITIALIZATION & ROBUST PERSISTENCE ENGINE
+           ========================================================= */
+        const DEFAULT_CONFIG = {
+            name: "DA POS",
+            slogan: "Fast Point of Sale",
+            upiId: "merchant@upi",
+            enableUpiQr: true,
+            logo: "",
+            gstin: "",
+            address: "",
+            city: "",
+            pincode: "",
+            state: "",
+            phone: "",
+            email: "",
+            enableGst: false,
+            gstRate: 5,
+            showWhatsapp: true,
+            showPrint: true,
+            showSave: true,
+            showExpExcel: true,
+            showExpPdf: true,
+            showExpImg: true,
+            showDiscount: true,
+            showDiscountFlat: true,
+            showCustomerInfo: true,
+            printCustOnBill: false
+        };
+
+        const DEFAULT_CATEGORIES = ["Breakfast", "Lunch", "Dinner", "Beverages", "Snacks"];
+        const DEFAULT_MENU = [
+            { id: 1, name: "Tea", price: 15, buy2Price: 25, category: "Beverages", img: "" },
+            { id: 2, name: "Coffee", price: 25, buy2Price: 40, category: "Beverages", img: "" },
+            { id: 3, name: "Samosa", price: 20, buy2Price: 35, category: "Snacks", img: "" },
+            { id: 4, name: "Dosa", price: 50, buy2Price: 90, category: "Breakfast", img: "" },
+            { id: 5, name: "Meals", price: 120, buy2Price: null, category: "Lunch", img: "" }
+        ];
+
+        let categories = [];
+        let menu = [];
+        let storeConfig = {};
+        let storesList = [];
+        let staffList = [];
+        let currentStoreId = "store-main";
+        let currentStaffId = "st-1";
+        let salesHistory = [];
+        let activeCategory = "All";
+        let cart = {};
+        let paymentMode = 'Cash';
+        let pendingConfirmCallback = null;
+
+        /* Safe localStorage wrappers (never throw: private mode / quota full) */
+        function safeGet(key) {
+            try { return localStorage.getItem(key); } catch (e) { return null; }
+        }
+        function safeSet(key, value) {
+            try { localStorage.setItem(key, value); return true; }
+            catch (e) {
+                console.warn("Storage error:", e);
+                try { showToast("Storage full / blocked! Data not saved", true); } catch (x) {}
+                return false;
+            }
+        }
+
+        function loadPersistentData() {
+            // 1. Categories
+            try {
+                const storedCats = safeGet('pos_categories');
+                categories = storedCats ? JSON.parse(storedCats) : DEFAULT_CATEGORIES;
+                if (!Array.isArray(categories) || categories.length === 0) categories = [...DEFAULT_CATEGORIES];
+            } catch (e) {
+                categories = [...DEFAULT_CATEGORIES];
+            }
+
+            // 2. Menu
+            try {
+                const storedMenu = safeGet('pos_menu');
+                menu = storedMenu ? JSON.parse(storedMenu) : DEFAULT_MENU;
+                if (!Array.isArray(menu)) menu = [...DEFAULT_MENU];
+            } catch (e) {
+                menu = [...DEFAULT_MENU];
+            }
+
+            // 3. Store Configuration & Branding
+            try {
+                const storedCfg = safeGet('pos_config');
+                const parsedCfg = storedCfg ? JSON.parse(storedCfg) : {};
+                storeConfig = { ...DEFAULT_CONFIG, ...parsedCfg };
+            } catch (e) {
+                storeConfig = { ...DEFAULT_CONFIG };
+            }
+
+            // 4. Stores List
+            try {
+                const storedStores = safeGet('pos_stores_list');
+                storesList = storedStores ? JSON.parse(storedStores) : [
+                    { id: "store-main", name: storeConfig.name || "Main Counter", address: "Counter 1" }
+                ];
+            } catch (e) {
+                storesList = [{ id: "store-main", name: "Main Counter", address: "Counter 1" }];
+            }
+
+            // 5. Active Store
+            currentStoreId = safeGet('pos_current_store_id') || (storesList[0] ? storesList[0].id : "store-main");
+
+            // 6. Staff List
+            try {
+                const storedStaff = safeGet('pos_staff_list');
+                staffList = storedStaff ? JSON.parse(storedStaff) : [
+                    { id: "st-1", name: "Manager", role: "Admin", phone: "" },
+                    { id: "st-2", name: "Cashier 1", role: "Cashier", phone: "" }
+                ];
+            } catch (e) {
+                staffList = [
+                    { id: "st-1", name: "Manager", role: "Admin", phone: "" },
+                    { id: "st-2", name: "Cashier 1", role: "Cashier", phone: "" }
+                ];
+            }
+
+            // 7. Active Staff
+            currentStaffId = safeGet('pos_current_staff_id') || (staffList[0] ? staffList[0].id : "st-1");
+
+            // 8. Sales History
+            try {
+                const storedSales = safeGet('pos_sales');
+                salesHistory = storedSales ? JSON.parse(storedSales) : [];
+                if (!Array.isArray(salesHistory)) salesHistory = [];
+            } catch (e) {
+                salesHistory = [];
+            }
+
+            // Sync back to guarantee existence in Storage
+            safeSet('pos_categories', JSON.stringify(categories));
+            safeSet('pos_menu', JSON.stringify(menu));
+            safeSet('pos_config', JSON.stringify(storeConfig));
+            safeSet('pos_stores_list', JSON.stringify(storesList));
+            safeSet('pos_staff_list', JSON.stringify(staffList));
+            safeSet('pos_current_store_id', currentStoreId);
+            safeSet('pos_current_staff_id', currentStaffId);
+        }
+
+        /* =========================================================
+           POP-UP CONFIRMATION MODAL HELPER
+           ========================================================= */
+        function showConfirmModal(title, message, confirmBtnLabel, onConfirmCallback) {
+            document.getElementById('confirm-modal-title').innerText = title || "Confirm Action";
+            document.getElementById('confirm-modal-msg').innerText = message || "Are you sure you want to proceed?";
+            const okBtn = document.getElementById('confirm-modal-ok-btn');
+            okBtn.innerText = confirmBtnLabel || "Delete";
+            pendingConfirmCallback = onConfirmCallback;
+            document.getElementById('confirm-modal').style.display = 'flex';
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').style.display = 'none';
+            pendingConfirmCallback = null;
+        }
+
+        function proceedConfirmAction() {
+            if (typeof pendingConfirmCallback === 'function') {
+                pendingConfirmCallback();
+            }
+            closeConfirmModal();
+        }
+
+        /* =========================================================
+           TOAST NOTIFICATION
+           ========================================================= */
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast-notification');
+            const toastMsg = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+            if (!toast) return;
+
+            toastIcon.innerText = isError ? "❌" : "✅";
+            toastMsg.innerText = message || "Success";
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+
+        /* =========================================================
+           CALCULATIONS & PRICING
+           ========================================================= */
+        function calculateItemLine(item, qty) {
+            const singlePrice = parseFloat(item.price) || 0;
+            const buy2 = (item.buy2Price !== null && item.buy2Price !== undefined && item.buy2Price > 0) 
+                         ? parseFloat(item.buy2Price) 
+                         : null;
+
+            if (buy2 && buy2 > 0 && qty >= 2) {
+                const pairs = Math.floor(qty / 2);
+                const singles = qty % 2;
+                const total = (pairs * buy2) + (singles * singlePrice);
+                return {
+                    total: total,
+                    isOfferApplied: true,
+                    pairs: pairs,
+                    singles: singles,
+                    summaryRate: `${pairs}x(2 for ₹${buy2})${singles > 0 ? ` + ${singles}x₹${singlePrice}` : ''}`
+                };
+            }
+
+            return {
+                total: qty * singlePrice,
+                isOfferApplied: false,
+                pairs: 0,
+                singles: qty,
+                summaryRate: `₹ ${singlePrice} / pc`
+            };
+        }
+
+        /* Buy 2 offer for the whole cart.
+           Items linked together (same normal price + same Buy 2 price) share ONE offer pool.
+           Items that are not linked keep working exactly as before (calculateItemLine). */
+        function calculateCartLines() {
+            const keys = Object.keys(cart);
+            const result = {};
+            const parent = {};
+            keys.forEach(k => { parent[k] = k; });
+            const find = x => {
+                while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; }
+                return x;
+            };
+            const union = (a, b) => {
+                const ra = find(a), rb = find(b);
+                if (ra !== rb) parent[rb] = ra;
+            };
+            const priceOf = it => parseFloat(it.price) || 0;
+            const offerOf = it => parseFloat(it.buy2Price) || 0;
+
+            keys.forEach(k => {
+                const a = cart[k];
+                const m = menu.find(x => String(x.id) === String(k));
+                const links = (m && Array.isArray(m.buy2Links)) ? m.buy2Links : [];
+                links.forEach(lid => {
+                    const bKey = String(lid);
+                    const b = cart[bKey];
+                    if (!b || bKey === k) return;
+                    if (offerOf(a) > 0 && priceOf(a) === priceOf(b) && offerOf(a) === offerOf(b)) {
+                        union(k, bKey);
+                    }
+                });
+            });
+
+            const groups = {};
+            keys.forEach(k => {
+                const r = find(k);
+                if (!groups[r]) groups[r] = [];
+                groups[r].push(k);
+            });
+
+            Object.values(groups).forEach(gKeys => {
+                if (gKeys.length === 1) {
+                    const k = gKeys[0];
+                    result[k] = calculateItemLine(cart[k], cart[k].qty);
+                    return;
+                }
+                const first = cart[gKeys[0]];
+                const unitPrice = priceOf(first);
+                const offer = offerOf(first);
+                const totalQty = gKeys.reduce((sum, k) => sum + cart[k].qty, 0);
+                let pairedLeft = Math.floor(totalQty / 2) * 2;
+
+                gKeys.forEach(k => {
+                    const qty = cart[k].qty;
+                    const paired = Math.min(qty, pairedLeft);
+                    pairedLeft -= paired;
+                    const single = qty - paired;
+                    const total = (paired * (offer / 2)) + (single * unitPrice);
+                    result[k] = {
+                        total: total,
+                        isOfferApplied: paired > 0,
+                        pairs: paired / 2,
+                        singles: single,
+                        summaryRate: paired > 0
+                            ? `${paired} pc Mix Buy 2 (2 for ₹${offer})${single > 0 ? ` + ${single}x₹${unitPrice}` : ''}`
+                            : `₹ ${unitPrice} / pc`
+                    };
+                });
+            });
+
+            return result;
+        }
+
+        function escapeHtmlText(str) {
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function generateUpiQrCode(amount) {
+            let upiId = (storeConfig.upiId || "").trim();
+            if (!upiId) return;
+            let rawName = storeConfig.name || "Merchant";
+            let amtVal = parseFloat(amount || 0).toFixed(2);
+
+            document.getElementById('display-upi-id').innerText = upiId;
+            document.getElementById('display-qr-amount').innerText = `₹ ${amtVal}`;
+
+            let upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(rawName)}&am=${amtVal}&cu=INR`;
+            let qrContainer = document.getElementById('qrcode-box');
+            qrContainer.innerHTML = "";
+
+            try {
+                new QRCode(qrContainer, {
+                    text: upiUrl,
+                    width: 140,
+                    height: 140,
+                    colorDark: "#0f172a",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            } catch (e) {
+                console.warn("QR Code render error:", e);
+            }
+        }
+
+        function formatDateDDMMYYYYWithTime(dateObj) {
+            const d = dateObj || new Date();
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            
+            let hours = d.getHours();
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            const strHours = String(hours).padStart(2, '0');
+
+            return `${day}/${month}/${year} ${strHours}:${minutes} ${ampm}`;
+        }
+
+        function syncCustToPhone(val) {
+            document.getElementById('cust-phone').value = val;
+        }
+
+        function selectGenderCheckbox(clickedCheckbox) {
+            const checkboxes = document.querySelectorAll('input[name="cust-gender-cb"]');
+            checkboxes.forEach(cb => {
+                if (cb !== clickedCheckbox) cb.checked = false;
+            });
+        }
+
+        function getSelectedGender() {
+            const checked = document.querySelector('input[name="cust-gender-cb"]:checked');
+            return checked ? checked.value : "";
+        }
+
+        function setSelectedGender(genderVal) {
+            const checkboxes = document.querySelectorAll('input[name="cust-gender-cb"]');
+            checkboxes.forEach(cb => {
+                cb.checked = (cb.value === genderVal);
+            });
+        }
+
+        /* =========================================================
+           STAFF, STORE & METADATA
+           ========================================================= */
+        function renderDashboardStoreAndStaffControls() {
+            const storeSelect = document.getElementById('dash-store-select');
+            const staffSelect = document.getElementById('dash-staff-select');
+            if (!storeSelect || !staffSelect) return;
+
+            storeSelect.innerHTML = storesList.map(s => `
+                <option value="${s.id}" ${s.id === currentStoreId ? 'selected' : ''}>${s.name}</option>
+            `).join('');
+
+            staffSelect.innerHTML = staffList.map(st => `
+                <option value="${st.id}" ${st.id === currentStaffId ? 'selected' : ''}>${st.name} (${st.role})</option>
+            `).join('');
+        }
+
+        function handleStoreChange(storeId) {
+            currentStoreId = storeId;
+            safeSet('pos_current_store_id', currentStoreId);
+        }
+
+        function handleStaffChange(staffId) {
+            currentStaffId = staffId;
+            safeSet('pos_current_staff_id', currentStaffId);
+        }
+
+        function getActiveStaff() {
+            return staffList.find(s => s.id === currentStaffId) || { name: "Cashier", role: "Staff" };
+        }
+
+        function openStaffModal() {
+            renderStaffRoster();
+            document.getElementById('staff-modal').style.display = 'flex';
+        }
+
+        function closeStaffModal() {
+            document.getElementById('staff-modal').style.display = 'none';
+        }
+
+        function renderStaffRoster() {
+            const container = document.getElementById('staff-roster-list');
+            if (!container) return;
+            container.innerHTML = staffList.map((st) => `
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; padding:8px 12px; border-radius:8px; font-size:0.82rem;">
+                    <div>
+                        <strong>${st.name}</strong> <span class="badge badge-online" style="margin-left:6px;">${st.role}</span>
+                        ${st.phone ? `<div style="font-size:0.72rem; color:#64748b;">${st.phone}</div>` : ''}
+                    </div>
+                    ${staffList.length > 1 ? `<button onclick="confirmDeleteStaff('${st.id}')" style="background:none; border:none; color:var(--danger); cursor:pointer; font-weight:bold; font-size:1rem;">✕</button>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function addNewStaffMember() {
+            const name = document.getElementById('new-staff-name').value.trim();
+            const phone = document.getElementById('new-staff-phone').value.trim();
+            const role = document.getElementById('new-staff-role').value;
+
+            if (!name) {
+                showToast("Please enter staff member name", true);
+                return;
+            }
+
+            const newStaff = { id: 'st-' + Date.now(), name, role, phone };
+            staffList.push(newStaff);
+            safeSet('pos_staff_list', JSON.stringify(staffList));
+            document.getElementById('new-staff-name').value = '';
+            document.getElementById('new-staff-phone').value = '';
+            
+            renderStaffRoster();
+            renderDashboardStoreAndStaffControls();
+            showToast("Staff Member Added");
+        }
+
+        function confirmDeleteStaff(id) {
+            const target = staffList.find(x => x.id === id);
+            const name = target ? target.name : 'this staff member';
+            showConfirmModal(
+                "Delete Staff Member?", 
+                `Are you sure you want to remove ${name}?`, 
+                "Yes, Remove", 
+                () => {
+                    staffList = staffList.filter(s => s.id !== id);
+                    if (currentStaffId === id && staffList.length > 0) {
+                        currentStaffId = staffList[0].id;
+                        safeSet('pos_current_staff_id', currentStaffId);
+                    }
+                    safeSet('pos_staff_list', JSON.stringify(staffList));
+                    renderStaffRoster();
+                    renderDashboardStoreAndStaffControls();
+                    showToast("Staff Member Removed");
+                }
+            );
+        }
+
+        /* =========================================================
+           APPLICATION LIFECYCLE
+           ========================================================= */
+        function initApp() {
+            loadPersistentData();
+            applyBranding();
+            applyButtonVisibility();
+            applyDiscountVisibility();
+            applyCustomerInfoVisibility();
+            renderCategoryChips();
+            populateCategoryDropdown();
+            renderMenu();
+            renderCart();
+            renderDashboardStoreAndStaffControls();
+            renderHistory();
+            updateBillNoDisplay();
+        }
+
+        window.onload = initApp;
+
+        /* Offline support (works on GitHub Pages / any https or localhost host) */
+        if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('sw.js').catch(function (err) {
+                    console.warn('Service worker not registered:', err);
+                });
+            });
+        }
+
+        window.addEventListener('online', function () { showToast('Back online'); });
+        window.addEventListener('offline', function () { showToast('Offline mode - all data saved on this device'); });
+
+        function appUnfreezeRefresh() {
+            closeConfirmModal();
+            closeBrandingModal();
+            closeStaffModal();
+            closeAnalyticsPrintModal();
+
+            const menuForm = document.getElementById('menu-form');
+            if (menuForm) menuForm.style.display = 'none';
+
+            loadPersistentData();
+            initApp();
+            showToast("POS Views Refreshed & Synced");
+        }
+
+        function switchView(tabName, elem) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(n => n.classList.remove('active'));
+
+            const targetTab = document.getElementById(`view-${tabName}`);
+            if (targetTab) targetTab.classList.add('active');
+            if (elem) elem.classList.add('active');
+        }
+
+        function goToOrderView() {
+            let tabs = document.querySelectorAll('.nav-tab');
+            switchView('order', tabs[1]);
+        }
+
+        function goToMenuView() {
+            let tabs = document.querySelectorAll('.nav-tab');
+            switchView('menu', tabs[0]);
+        }
+
+        /* =========================================================
+           CATEGORIES & MENU
+           ========================================================= */
+        function renderCategoryChips() {
+            let container = document.getElementById('category-bar-container');
+            let chipsHtml = `<div class="cat-chip ${activeCategory === 'All' ? 'active' : ''}" onclick="selectCategory('All')">All</div>`;
+
+            chipsHtml += categories.map(cat => {
+                let isActive = activeCategory === cat;
+                return `<div class="cat-chip ${isActive ? 'active' : ''}" data-cat="${escapeHtmlText(cat)}" onclick="selectCategory(this.dataset.cat)"><span>${escapeHtmlText(cat)}</span></div>`;
+            }).join('');
+
+            container.innerHTML = chipsHtml;
+        }
+
+        function selectCategory(cat) {
+            activeCategory = cat;
+            renderCategoryChips();
+            renderMenu();
+        }
+
+        function showInlineCategoryInput() {
+            document.getElementById('inline-cat-box').style.display = 'flex';
+            document.getElementById('item-custom-category').focus();
+        }
+
+        function hideInlineCategoryInput() {
+            document.getElementById('inline-cat-box').style.display = 'none';
+            document.getElementById('item-custom-category').value = '';
+        }
+
+        function addInlineCategory() {
+            let val = document.getElementById('item-custom-category').value.trim();
+            if (!val) return showToast("Enter category name", true);
+            if (val.toLowerCase() === "all") return showToast("Reserved name", true);
+
+            if (!categories.includes(val)) {
+                categories.push(val);
+                safeSet('pos_categories', JSON.stringify(categories));
+                renderCategoryChips();
+                populateCategoryDropdown(val);
+                hideInlineCategoryInput();
+                showToast("Category added!");
+            } else {
+                showToast("Category exists", true);
+            }
+        }
+
+        function deleteSelectedCategoryInline() {
+            let select = document.getElementById('item-category-select');
+            let selectedCat = select.value;
+            if (!selectedCat) return showToast("No category selected", true);
+
+            showConfirmModal(
+                "Delete Category?",
+                `Are you sure you want to delete category "${selectedCat}"? Items will be set to General.`,
+                "Yes, Delete",
+                () => { deleteCategory(selectedCat); }
+            );
+        }
+
+        function populateCategoryDropdown(selectedCat = null) {
+            let select = document.getElementById('item-category-select');
+            select.innerHTML = categories.map(c => `<option value="${escapeHtmlText(c)}">${escapeHtmlText(c)}</option>`).join('');
+            if (selectedCat) select.value = selectedCat;
+        }
+
+        function renderSettingsCategories() {
+            let container = document.getElementById('categories-list-container');
+            container.innerHTML = categories.map(c => `
+                <span class="badge badge-online" style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px; font-size:0.75rem;">
+                    ${escapeHtmlText(c)} <button data-cat="${escapeHtmlText(c)}" onclick="confirmDeleteCategoryFromSettings(this.dataset.cat)" style="background:none; border:none; cursor:pointer; font-weight:bold; color:red;">×</button>
+                </span>
+            `).join('');
+        }
+
+        function confirmDeleteCategoryFromSettings(catName) {
+            showConfirmModal(
+                "Delete Category?",
+                `Delete category "${catName}"?`,
+                "Yes, Delete",
+                () => { deleteCategory(catName); }
+            );
+        }
+
+        function addCategoryFromSettings() {
+            let val = document.getElementById('new-cat-input').value.trim();
+            if (!val) return;
+            if (val.toLowerCase() === "all") return showToast("Reserved name", true);
+            
+            if (!categories.includes(val)) {
+                categories.push(val);
+                safeSet('pos_categories', JSON.stringify(categories));
+                renderCategoryChips();
+                populateCategoryDropdown();
+                renderSettingsCategories();
+                document.getElementById('new-cat-input').value = '';
+                showToast("Category added!");
+            }
+        }
+
+        function deleteCategory(catName) {
+            categories = categories.filter(c => c !== catName);
+            safeSet('pos_categories', JSON.stringify(categories));
+
+            let updatedMenu = false;
+            menu.forEach(item => {
+                if (item.category === catName) {
+                    item.category = "General";
+                    updatedMenu = true;
+                }
+            });
+
+            if (updatedMenu) {
+                safeSet('pos_menu', JSON.stringify(menu));
+            }
+
+            if (activeCategory === catName) activeCategory = "All";
+
+            renderCategoryChips();
+            populateCategoryDropdown();
+            renderSettingsCategories();
+            renderMenu();
+            showToast(`Category "${catName}" removed`);
+        }
+
+        function renderMenu() {
+            const container = document.getElementById('menu-container');
+            let filteredMenu = activeCategory === "All" 
+                ? menu 
+                : menu.filter(item => (item.category || "General") === activeCategory);
+
+            if (filteredMenu.length === 0) {
+                container.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color:#94a3b8; padding:30px 0; font-size:0.85rem;">No items in "${activeCategory}"</div>`;
+                return;
+            }
+
+            const isEditing = document.getElementById('menu-form').style.display !== 'none';
+
+            container.innerHTML = filteredMenu.map(item => {
+                let qty = cart[item.id] ? cart[item.id].qty : 0;
+                let imgSrc = item.img || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><rect width='100' height='100' fill='%23cbd5e1'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='10' fill='%2364748b'>No Image</text></svg>";
+                
+                let buy2Notice = "";
+                if (item.buy2Price && Number(item.buy2Price) > 0) {
+                    buy2Notice = `<div class="deal-tag">🎉 Buy 2 for ₹${item.buy2Price}</div>`;
+                    let linkedNames = getLinkedItemsOf(item).map(o => escapeHtmlText(o.name));
+                    if (linkedNames.length > 0) {
+                        buy2Notice += `<div style="font-size:0.66rem; color:#7c3aed; font-weight:600; margin-top:2px;">🔗 Mix with ${linkedNames.join(', ')}</div>`;
+                    }
+                }
+
+                return `
+                <div class="menu-item ${isEditing ? 'show-edit-controls' : ''}">
+                    <div class="item-actions">
+                        <button class="btn-icon" onclick="editMenuItem(${item.id})">✏️</button>
+                        <button class="btn-icon" onclick="confirmDeleteMenuItem(${item.id})">❌</button>
+                    </div>
+                    <img src="${imgSrc}" alt="${escapeHtmlText(item.name)}">
+                    <h4>${escapeHtmlText(item.name)}</h4>
+                    <div class="cat-label">${escapeHtmlText(item.category || 'General')}</div>
+                    
+                    <div class="price-badge-row">
+                        <div class="price-single">₹ ${item.price}</div>
+                        ${buy2Notice}
+                    </div>
+
+                    <div class="qty-controls">
+                        <button class="btn-qty" onclick="updateQty(${item.id}, -1)">-</button>
+                        <span style="font-size:0.9rem; font-weight:700;">${qty}</span>
+                        <button class="btn-qty" onclick="updateQty(${item.id}, 1)">+</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        /* ---------- Buy 2 link helpers ---------- */
+        function getLinkedItemsOf(item) {
+            return menu.filter(o => o.id !== item.id &&
+                ((Array.isArray(item.buy2Links) && item.buy2Links.includes(o.id)) ||
+                 (Array.isArray(o.buy2Links) && o.buy2Links.includes(item.id))) &&
+                Number(o.price) === Number(item.price) && Number(o.buy2Price) > 0);
+        }
+
+        function refreshBuy2LinkList(forcedSelectedIds) {
+            const box = document.getElementById('buy2-link-box');
+            const list = document.getElementById('buy2-link-list');
+            if (!box || !list) return;
+
+            let selected;
+            if (Array.isArray(forcedSelectedIds)) {
+                selected = forcedSelectedIds.map(Number);
+            } else {
+                selected = Array.from(list.querySelectorAll('.buy2-link-chk:checked')).map(c => Number(c.value));
+            }
+
+            const priceVal = parseFloat(document.getElementById('item-price').value);
+            const buy2Val = parseFloat(document.getElementById('item-price-buy2').value);
+            const editId = document.getElementById('edit-item-id').value;
+
+            if (isNaN(priceVal) || isNaN(buy2Val) || buy2Val <= 0) {
+                box.style.display = 'none';
+                list.innerHTML = '';
+                return;
+            }
+
+            const candidates = menu.filter(m => String(m.id) !== String(editId) && Number(m.price) === priceVal);
+            box.style.display = 'block';
+
+            if (candidates.length === 0) {
+                list.innerHTML = `<span style="font-size:0.75rem; color:#64748b;">No other items with the same price ₹${priceVal}.</span>`;
+                return;
+            }
+
+            list.innerHTML = candidates.map(m => `
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.8rem; font-weight:600; color:#334155; cursor:pointer;">
+                    <input type="checkbox" class="buy2-link-chk" value="${m.id}" ${selected.includes(Number(m.id)) ? 'checked' : ''} style="width:auto; margin:0;">
+                    <span>${escapeHtmlText(m.name)} <span style="color:#94a3b8; font-weight:500;">(₹${m.price} · ${escapeHtmlText(m.category || 'General')})</span></span>
+                </label>`).join('');
+        }
+
+        function toggleAddMenu() {
+            let form = document.getElementById('menu-form');
+            let isHidden = (form.style.display === 'none');
+            form.style.display = isHidden ? 'block' : 'none';
+            
+            document.getElementById('edit-item-id').value = '';
+            document.getElementById('item-name').value = '';
+            document.getElementById('item-price').value = '';
+            document.getElementById('item-price-buy2').value = '';
+            document.getElementById('item-image').value = '';
+            hideInlineCategoryInput();
+            refreshBuy2LinkList([]);
+            
+            populateCategoryDropdown();
+            renderMenu();
+        }
+
+        function saveMenuItem() {
+            let id = document.getElementById('edit-item-id').value;
+            let name = document.getElementById('item-name').value.trim();
+            let price = parseFloat(document.getElementById('item-price').value);
+            let buy2InputVal = document.getElementById('item-price-buy2').value.trim();
+            let buy2Price = buy2InputVal !== "" ? parseFloat(buy2InputVal) : null;
+            let category = document.getElementById('item-category-select').value || 'General';
+            let fileInput = document.getElementById('item-image');
+            let selectedLinks = Array.from(document.querySelectorAll('#buy2-link-list .buy2-link-chk:checked')).map(c => Number(c.value));
+            if (!(buy2Price && buy2Price > 0)) selectedLinks = [];
+
+            if (!name || isNaN(price) || price < 0) {
+                showToast('Please enter a valid item name & rate', true);
+                return;
+            }
+
+            let commitItem = (imgBase64) => {
+                let savedId;
+                if (id) {
+                    savedId = Number(id);
+                    let index = menu.findIndex(m => m.id == id);
+                    if (index !== -1) {
+                        menu[index] = { 
+                            id: Number(id), 
+                            name, 
+                            price, 
+                            buy2Price: (buy2Price && buy2Price > 0) ? buy2Price : null, 
+                            buy2Links: selectedLinks.filter(l => l !== savedId),
+                            category, 
+                            img: imgBase64 || menu[index].img 
+                        };
+                    }
+                } else {
+                    savedId = Date.now();
+                    menu.push({ 
+                        id: savedId, 
+                        name, 
+                        price, 
+                        buy2Price: (buy2Price && buy2Price > 0) ? buy2Price : null, 
+                        buy2Links: selectedLinks.filter(l => l !== savedId),
+                        category, 
+                        img: imgBase64 || '' 
+                    });
+                }
+
+                // Keep links two-way and keep linked items on the same Buy 2 price
+                menu.forEach(m => {
+                    if (m.id === savedId) return;
+                    if (!Array.isArray(m.buy2Links)) m.buy2Links = [];
+                    if (selectedLinks.includes(m.id)) {
+                        if (!m.buy2Links.includes(savedId)) m.buy2Links.push(savedId);
+                        m.buy2Price = buy2Price;
+                    } else {
+                        m.buy2Links = m.buy2Links.filter(l => l !== savedId);
+                    }
+                });
+                // Drop any cart copy so a changed offer/link applies cleanly
+                Object.keys(cart).forEach(k => {
+                    let fresh = menu.find(m => String(m.id) === String(k));
+                    if (fresh) cart[k] = { ...fresh, qty: cart[k].qty };
+                });
+                safeSet('pos_menu', JSON.stringify(menu));
+                toggleAddMenu();
+                renderCart();
+                showToast("Item saved permanently!");
+            };
+
+            if (fileInput.files && fileInput.files[0]) {
+                let reader = new FileReader();
+                reader.onload = e => commitItem(e.target.result);
+                reader.readAsDataURL(fileInput.files[0]);
+            } else {
+                commitItem(null);
+            }
+        }
+
+        function editMenuItem(id) {
+            let item = menu.find(m => m.id === id);
+            if (!item) return;
+            document.getElementById('menu-form').style.display = 'block';
+            document.getElementById('edit-item-id').value = item.id;
+            document.getElementById('item-name').value = item.name;
+            document.getElementById('item-price').value = item.price;
+            document.getElementById('item-price-buy2').value = (item.buy2Price !== null && item.buy2Price !== undefined) ? item.buy2Price : '';
+            populateCategoryDropdown(item.category);
+            refreshBuy2LinkList(getLinkedItemsOf(item).map(o => o.id));
+            renderMenu();
+        }
+
+        function confirmDeleteMenuItem(id) {
+            const target = menu.find(m => m.id === id);
+            const name = target ? target.name : 'this item';
+            showConfirmModal(
+                "Delete Menu Item?",
+                `Are you sure you want to remove "${name}" from your menu?`,
+                "Yes, Delete",
+                () => {
+                    menu = menu.filter(m => m.id !== id);
+                    menu.forEach(m => {
+                        if (Array.isArray(m.buy2Links)) m.buy2Links = m.buy2Links.filter(l => l !== id);
+                    });
+                    delete cart[id];
+                    safeSet('pos_menu', JSON.stringify(menu));
+                    renderMenu();
+                    renderCart();
+                    showToast("Item deleted");
+                }
+            );
+        }
+
+        function updateQty(id, change) {
+            let item = menu.find(m => m.id === id);
+            if (!item) return;
+
+            if (!cart[id]) {
+                if (change > 0) cart[id] = { ...item, qty: change };
+            } else {
+                cart[id].qty += change;
+                if (cart[id].qty <= 0) delete cart[id];
+            }
+            renderMenu();
+            renderCart();
+        }
+
+        /* =========================================================
+           BILLING & CART LOGIC
+           ========================================================= */
+        function renderCart() {
+            const tbody = document.getElementById('cart-tbody');
+            let keys = Object.keys(cart);
+
+            if (keys.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding: 20px 0;">No items added</td></tr>`;
+                calculateBill();
+                return;
+            }
+
+            const cartLines = calculateCartLines();
+            tbody.innerHTML = keys.map(k => {
+                let item = cart[k];
+                let lineCalc = cartLines[k];
+                let ratePlanDisplay = `₹ ${item.price}`;
+                let dealIndicator = "";
+
+                if (lineCalc.isOfferApplied) {
+                    dealIndicator = `<span class="cart-deal-subtext">✨ Offer: ${lineCalc.summaryRate}</span>`;
+                }
+
+                return `
+                <tr>
+                    <td>
+                        <strong>${item.name}</strong>
+                        ${dealIndicator}
+                    </td>
+                    <td>${item.qty}</td>
+                    <td>${ratePlanDisplay}</td>
+                    <td><strong>₹ ${lineCalc.total.toFixed(2)}</strong></td>
+                </tr>`;
+            }).join('');
+
+            calculateBill();
+        }
+
+        /* Single source of truth for bill totals (used by screen, save, print, WhatsApp) */
+        function computeBillTotals() {
+            const billLines = calculateCartLines();
+            let subTotal = Object.keys(cart).reduce((sum, k) => {
+                return sum + (billLines[k] ? billLines[k].total : 0);
+            }, 0);
+
+            const pctEnabled = storeConfig.showDiscount !== false;
+            const flatEnabled = storeConfig.showDiscountFlat !== false;
+
+            let discountPct = pctEnabled ? (parseFloat(document.getElementById('discount-pct').value) || 0) : 0;
+            if (!isFinite(discountPct) || discountPct < 0) discountPct = 0;
+            if (discountPct > 100) discountPct = 100;
+            let pctAmt = subTotal * (discountPct / 100);
+
+            let discountFlat = flatEnabled ? (parseFloat(document.getElementById('discount-flat').value) || 0) : 0;
+            if (!isFinite(discountFlat) || discountFlat < 0) discountFlat = 0;
+            // flat discount can never push the bill below zero
+            let maxFlat = Math.max(0, subTotal - pctAmt);
+            if (discountFlat > maxFlat) discountFlat = maxFlat;
+
+            let discountAmt = pctAmt + discountFlat;
+            let discountedSubtotal = Math.max(0, subTotal - discountAmt);
+
+            let gstRate = storeConfig.enableGst ? (parseFloat(storeConfig.gstRate) || 0) : 0;
+            let totalGstAmt = 0, cgstAmt = 0, sgstAmt = 0;
+            if (gstRate > 0) {
+                totalGstAmt = discountedSubtotal * (gstRate / 100);
+                cgstAmt = totalGstAmt / 2;
+                sgstAmt = totalGstAmt / 2;
+            }
+            return {
+                subTotal, discountPct, pctAmt, discountFlat, discountAmt, discountedSubtotal,
+                gstRate, totalGstAmt, cgstAmt, sgstAmt,
+                grandTotal: discountedSubtotal + totalGstAmt
+            };
+        }
+
+        function calculateBill() {
+            const t = computeBillTotals();
+            let subTotal = t.subTotal;
+            let discountedSubtotal = t.discountedSubtotal;
+            let totalGstAmt = t.totalGstAmt;
+            let cgstAmt = t.cgstAmt;
+            let sgstAmt = t.sgstAmt;
+            let gstRate = t.gstRate;
+
+            let discTotalRow = document.getElementById('discount-total-row');
+            if (discTotalRow) {
+                discTotalRow.style.display = t.discountAmt > 0 ? 'flex' : 'none';
+                document.getElementById('discount-total-amt').innerText = `- ₹ ${t.discountAmt.toFixed(2)}`;
+            }
+
+            let gstBox = document.getElementById('gst-breakdown-box');
+            if (storeConfig.enableGst && gstRate > 0) {
+                document.getElementById('cgst-rate-lbl').innerText = (gstRate / 2).toFixed(1);
+                document.getElementById('sgst-rate-lbl').innerText = (gstRate / 2).toFixed(1);
+                document.getElementById('total-gst-rate-lbl').innerText = gstRate;
+
+                document.getElementById('cgst-amt').innerText = `₹ ${cgstAmt.toFixed(2)}`;
+                document.getElementById('sgst-amt').innerText = `₹ ${sgstAmt.toFixed(2)}`;
+                document.getElementById('total-gst-amt').innerText = `₹ ${totalGstAmt.toFixed(2)}`;
+
+                gstBox.style.display = 'block';
+            } else {
+                gstBox.style.display = 'none';
+            }
+
+            let grandTotal = t.grandTotal;
+
+            document.getElementById('sub-total').innerText = `₹ ${subTotal.toFixed(2)}`;
+            document.getElementById('grand-total').innerText = `₹ ${grandTotal.toFixed(2)}`;
+
+            if (paymentMode === 'Online' && storeConfig.enableUpiQr !== false) {
+                generateUpiQrCode(grandTotal);
+            }
+
+            calculateBalance();
+            calculateSplit();
+        }
+
+        function setPaymentMode(mode) {
+            paymentMode = mode;
+            document.getElementById('pay-cash').classList.toggle('active', mode === 'Cash');
+            document.getElementById('pay-online').classList.toggle('active', mode === 'Online');
+            document.getElementById('pay-split').classList.toggle('active', mode === 'Split');
+
+            document.getElementById('payment-calc-box').style.display = mode === 'Online' ? 'none' : 'block';
+            document.getElementById('cash-mode-fields').style.display = mode === 'Cash' ? 'block' : 'none';
+            document.getElementById('split-mode-fields').style.display = mode === 'Split' ? 'block' : 'none';
+
+            let qrContainer = document.getElementById('upi-qr-container');
+            if (mode === 'Online' && storeConfig.enableUpiQr !== false) {
+                let grandTotal = parseFloat(document.getElementById('grand-total').innerText.replace('₹', '')) || 0;
+                generateUpiQrCode(grandTotal);
+                qrContainer.style.display = 'flex';
+            } else {
+                qrContainer.style.display = 'none';
+            }
+
+            if (mode === 'Split') calculateSplit();
+        }
+
+        function calculateBalance() {
+            if (paymentMode !== 'Cash') return;
+            let grandTotal = parseFloat(document.getElementById('grand-total').innerText.replace('₹', '')) || 0;
+            let cashGiven = parseFloat(document.getElementById('cash-given').value) || 0;
+            let diff = cashGiven - grandTotal;
+
+            let balanceElem = document.getElementById('cash-balance');
+            if (diff >= 0) {
+                balanceElem.style.color = "var(--success)";
+                balanceElem.innerText = `Give ₹ ${diff.toFixed(2)}`;
+            } else {
+                balanceElem.style.color = "var(--danger)";
+                balanceElem.innerText = `Gets ₹ ${Math.abs(diff).toFixed(2)}`;
+            }
+        }
+
+        function calculateSplit() {
+            if (paymentMode !== 'Split') return;
+            let grandTotal = parseFloat(document.getElementById('grand-total').innerText.replace('₹', '')) || 0;
+            let cashPart = parseFloat(document.getElementById('split-cash').value) || 0;
+            let onlinePart = Math.max(0, grandTotal - cashPart);
+
+            document.getElementById('split-online').value = onlinePart.toFixed(2);
+        }
+
+        function getNextBillNo() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            const todayStr = `${yyyy}${mm}${dd}`;
+
+            const todaysBills = salesHistory.filter(s => s.id && s.id.startsWith(todayStr));
+            const nextSno = todaysBills.length + 1;
+
+            return `${todayStr}-${nextSno}`;
+        }
+
+        function updateBillNoDisplay() {
+            document.getElementById('next-bill-no').innerText = `Bill #: ${getNextBillNo()}`;
+        }
+
+        function processOrder(actionType) {
+            let rawItems = Object.values(cart);
+            if (rawItems.length === 0) {
+                showToast("Cart is empty!", true);
+                return;
+            }
+
+            const orderLines = calculateCartLines();
+            let items = rawItems.map(it => {
+                const line = orderLines[it.id];
+                return {
+                    id: it.id,
+                    name: it.name,
+                    qty: it.qty,
+                    price: it.price,
+                    buy2Price: it.buy2Price || null,
+                    lineTotal: line.total,
+                    isOfferApplied: line.isOfferApplied,
+                    dealSummary: line.isOfferApplied ? line.summaryRate : `₹${it.price}/pc`
+                };
+            });
+
+            const totals = computeBillTotals();
+            let subTotal = totals.subTotal;
+            let discount = totals.discountPct;
+            let discountFlat = totals.discountFlat;
+            let discountAmt = totals.discountAmt;
+            let grandTotal = totals.grandTotal;
+            let totalGstAmt = totals.totalGstAmt;
+            let cgstAmt = totals.cgstAmt;
+            let sgstAmt = totals.sgstAmt;
+            let gstRate = totals.gstRate;
+
+            let custName = document.getElementById('cust-name').value.trim();
+            let phone = document.getElementById('cust-phone').value.trim();
+            let custGender = getSelectedGender();
+
+            if (actionType === 'whatsapp') {
+                if (!phone || phone.length !== 10) {
+                    showToast("Enter a valid 10-digit mobile number", true);
+                    return;
+                }
+            }
+
+            let paymentDetail = paymentMode;
+            let cashVal = grandTotal;
+            let onlineVal = 0;
+
+            if (paymentMode === 'Online') {
+                cashVal = 0;
+                onlineVal = grandTotal;
+            } else if (paymentMode === 'Split') {
+                cashVal = parseFloat(document.getElementById('split-cash').value) || 0;
+                onlineVal = parseFloat(document.getElementById('split-online').value) || 0;
+                paymentDetail = `Split (Cash: ₹${cashVal}, Online: ₹${onlineVal})`;
+            }
+
+            let billId = getNextBillNo();
+            let now = new Date();
+            let currentStaff = getActiveStaff();
+
+            let order = {
+                id: billId,
+                timestamp: now.getTime(),
+                date: now.toLocaleString(),
+                custName: custName,
+                custPhone: phone,
+                custGender: custGender,
+                items: items,
+                subTotal: subTotal,
+                discount: discount,
+                discountFlat: discountFlat,
+                discountAmt: discountAmt,
+                gstRate: gstRate,
+                cgstAmt: cgstAmt,
+                sgstAmt: sgstAmt,
+                totalGstAmt: totalGstAmt,
+                grandTotal: grandTotal,
+                paymentMode: paymentDetail,
+                cashAmount: cashVal,
+                onlineAmount: onlineVal,
+                storeId: currentStoreId,
+                storeName: storeConfig.name,
+                staffName: currentStaff.name,
+                staffRole: currentStaff.role
+            };
+
+            salesHistory.unshift(order);
+            safeSet('pos_sales', JSON.stringify(salesHistory));
+
+            if (actionType === 'whatsapp') {
+                sendWhatsAppBill(order, phone);
+            } else if (actionType === 'print') {
+                printThermalReceipt(order);
+            } else {
+                showToast("Bill Saved Successfully!");
+            }
+
+            // Reset order inputs
+            cart = {};
+            document.getElementById('discount-pct').value = 0;
+            document.getElementById('discount-flat').value = 0;
+            document.getElementById('cash-given').value = '';
+            document.getElementById('split-cash').value = '';
+            document.getElementById('cust-name').value = '';
+            document.getElementById('cust-phone').value = '';
+            setSelectedGender("");
+            
+            renderMenu();
+            renderCart();
+            renderHistory();
+            updateBillNoDisplay();
+        }
+
+        /* Works for old bills (only %) and new bills (% + flat) */
+        function getOrderDiscountParts(order) {
+            const sub = parseFloat(order.subTotal) || 0;
+            const pct = parseFloat(order.discount) || 0;
+            const flat = parseFloat(order.discountFlat) || 0;
+            const pctAmt = sub * (pct / 100);
+            return { pct, flat, pctAmt, total: pctAmt + flat };
+        }
+
+        function sendWhatsAppBill(order, phone) {
+            let itemDetails = order.items.map(i => {
+                let lineTotal = i.lineTotal !== undefined ? i.lineTotal : (i.price * i.qty);
+                let offerTag = i.isOfferApplied ? ` (${i.dealSummary})` : '';
+                return `• ${i.name} x${i.qty}${offerTag} = ₹${lineTotal.toFixed(2)}`;
+            }).join('\n');
+            
+            let message = `*${storeConfig.name}*\n` +
+                          `${storeConfig.slogan ? storeConfig.slogan + '\n' : ''}` +
+                          `--------------------------------\n` +
+                          `*Bill No:* ${order.id}\n` +
+                          `*Date:* ${order.date}\n` +
+                          `*Billed By:* ${order.staffName || 'Staff'} (${order.staffRole || 'Cashier'})\n`;
+
+            if (order.custName) message += `*Customer:* ${order.custName}\n`;
+
+            message += `--------------------------------\n` +
+                       `*ITEMS:*\n${itemDetails}\n` +
+                       `--------------------------------\n` +
+                       `Subtotal: ₹${order.subTotal.toFixed(2)}\n`;
+
+            {
+                const dp = getOrderDiscountParts(order);
+                if (dp.pct > 0) message += `Discount (${dp.pct}%): -₹${dp.pctAmt.toFixed(2)}\n`;
+                if (dp.flat > 0) message += `Discount (Flat): -₹${dp.flat.toFixed(2)}\n`;
+            }
+            if (order.totalGstAmt > 0) message += `GST (${order.gstRate}%): ₹${order.totalGstAmt.toFixed(2)}\n`;
+
+            message += `*Grand Total: ₹${order.grandTotal.toFixed(2)}*\n` +
+                       `Payment Mode: ${order.paymentMode}\n` +
+                       `--------------------------------\n` +
+                       `Thank you for your visit! 🙏`;
+
+            let waUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`;
+            window.open(waUrl, '_blank');
+        }
+
+        function printThermalReceipt(order) {
+            let receiptBox = document.getElementById('thermal-receipt');
+            
+            let itemsHtml = order.items.map(i => {
+                let totalVal = i.lineTotal !== undefined ? i.lineTotal : (i.price * i.qty);
+                let dealNote = i.isOfferApplied ? `<br><small style="font-size:8px;">*Offer: ${i.dealSummary}</small>` : '';
+                return `<tr><td>${i.name} x${i.qty}${dealNote}</td><td>₹${totalVal.toFixed(2)}</td></tr>`;
+            }).join('');
+
+            let custDetailsHtml = "";
+            if (storeConfig.printCustOnBill && (order.custName || order.custPhone)) {
+                custDetailsHtml = `<div class="divider"></div><p style="text-align:left;">`;
+                if (order.custName) custDetailsHtml += `Customer: ${order.custName}<br>`;
+                if (order.custPhone) custDetailsHtml += `Phone: ${order.custPhone}<br>`;
+                custDetailsHtml += `</p>`;
+            }
+
+            let gstDetailsHtml = "";
+            if (order.totalGstAmt > 0) {
+                gstDetailsHtml = `
+                    <tr><td>CGST (${order.gstRate/2}%):</td><td>₹${order.cgstAmt.toFixed(2)}</td></tr>
+                    <tr><td>SGST (${order.gstRate/2}%):</td><td>₹${order.sgstAmt.toFixed(2)}</td></tr>
+                `;
+            }
+
+            let fullAddr = getFullStoreAddress();
+
+            receiptBox.innerHTML = `
+                ${storeConfig.logo ? `<img src="${storeConfig.logo}" alt="Logo">` : ''}
+                <h3>${storeConfig.name}</h3>
+                <p>${storeConfig.slogan || ''}</p>
+                ${fullAddr ? `<p style="font-size:9px; color:#333;">${fullAddr}</p>` : ''}
+                <div class="divider"></div>
+                <p style="text-align:left;">
+                    Bill #: ${order.id}<br>
+                    Date: ${order.date}<br>
+                    Staff: ${order.staffName || 'Cashier'} (${order.staffRole || 'Staff'})
+                </p>
+                ${custDetailsHtml}
+                <div class="divider"></div>
+                <table>
+                    <thead>
+                        <tr style="border-bottom:1px solid #000;">
+                            <th style="text-align:left;">Item</th>
+                            <th style="text-align:right;">Amt</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                    </tbody>
+                </table>
+                <div class="divider"></div>
+                <table>
+                    <tr><td>Subtotal:</td><td>₹${order.subTotal.toFixed(2)}</td></tr>
+                    ${(function(){ const dp = getOrderDiscountParts(order);
+                        return (dp.pct > 0 ? `<tr><td>Discount (${dp.pct}%):</td><td>-₹${dp.pctAmt.toFixed(2)}</td></tr>` : '') +
+                               (dp.flat > 0 ? `<tr><td>Discount (Flat):</td><td>-₹${dp.flat.toFixed(2)}</td></tr>` : ''); })()}
+                    ${gstDetailsHtml}
+                    <tr style="font-weight:bold;"><td>Grand Total:</td><td>₹${order.grandTotal.toFixed(2)}</td></tr>
+                </table>
+                <div class="divider"></div>
+                <p>Payment: ${order.paymentMode}</p>
+                <p style="margin-top:5px; font-weight:bold;">Thank You! Visit Again</p>
+            `;
+
+            window.print();
+        }
+
+        /* =========================================================
+           SALES HISTORY & DELETIONS WITH POPUPS
+           ========================================================= */
+        function getFilteredSalesHistory() {
+            let preset = document.getElementById('date-filter-preset').value;
+            let now = new Date();
+            let startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            let endOfToday = startOfToday + (24 * 60 * 60 * 1000) - 1;
+
+            if (preset === 'today') {
+                return salesHistory.filter(s => (s.timestamp || 0) >= startOfToday && (s.timestamp || 0) <= endOfToday);
+            } else if (preset === 'yesterday') {
+                let startOfYesterday = startOfToday - (24 * 60 * 60 * 1000);
+                let endOfYesterday = startOfToday - 1;
+                return salesHistory.filter(s => (s.timestamp || 0) >= startOfYesterday && (s.timestamp || 0) <= endOfYesterday);
+            } else if (preset === 'this_week') {
+                let dayOfWeek = now.getDay(); 
+                let startOfWeek = startOfToday - (dayOfWeek * 24 * 60 * 60 * 1000);
+                return salesHistory.filter(s => (s.timestamp || 0) >= startOfWeek);
+            } else if (preset === 'this_month') {
+                let startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+                return salesHistory.filter(s => (s.timestamp || 0) >= startOfMonth);
+            } else if (preset === 'prev_month') {
+                let startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+                let endOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999).getTime();
+                return salesHistory.filter(s => (s.timestamp || 0) >= startOfPrevMonth && (s.timestamp || 0) <= endOfPrevMonth);
+            } else if (preset === 'custom') {
+                let fromVal = document.getElementById('filter-from-date').value;
+                let toVal = document.getElementById('filter-to-date').value;
+                let fromTime = fromVal ? new Date(fromVal).setHours(0,0,0,0) : 0;
+                let toTime = toVal ? new Date(toVal).setHours(23,59,59,999) : Date.now();
+                return salesHistory.filter(s => (s.timestamp || 0) >= fromTime && (s.timestamp || 0) <= toTime);
+            }
+
+            return salesHistory;
+        }
+
+        function handleFilterChange() {
+            let preset = document.getElementById('date-filter-preset').value;
+            let customBox = document.getElementById('custom-date-box');
+            customBox.style.display = preset === 'custom' ? 'flex' : 'none';
+            renderHistory();
+        }
+
+        function renderHistory() {
+            let filteredSales = getFilteredSalesHistory();
+            renderAnalyticsDashboard(filteredSales);
+
+            const tbody = document.getElementById('history-tbody');
+            if (filteredSales.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#94a3b8; padding: 20px 0;">No sales history found for this period</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filteredSales.map(order => {
+                let itemStr = order.items.map(i => `${i.name} (${i.qty})`).join(', ');
+                let modeBadge = order.paymentMode.includes('Cash') ? 'badge-cash' : (order.paymentMode.includes('Online') ? 'badge-online' : 'badge-split');
+                let custInfo = order.custName || order.custPhone || 'N/A';
+                let staffDisplay = order.staffName ? `${order.staffName} <span style="font-size:0.7rem; color:#64748b;">(${order.staffRole || 'Staff'})</span>` : 'Admin';
+
+                return `
+                <tr>
+                    <td><strong>${order.id}</strong></td>
+                    <td style="font-size:0.75rem;">${order.date}</td>
+                    <td>${staffDisplay}</td>
+                    <td>${custInfo}</td>
+                    <td style="max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${itemStr}</td>
+                    <td><strong>₹ ${order.grandTotal.toFixed(2)}</strong></td>
+                    <td><span class="badge ${modeBadge}">${order.paymentMode}</span></td>
+                    <td>
+                        <button class="btn-icon" onclick="reprintReceipt('${order.id}')" title="Print Receipt">🖨️</button>
+                        <button class="btn-icon" onclick="confirmDeleteSale('${order.id}')" title="Delete Order">🗑️</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function renderAnalyticsDashboard(filteredSales) {
+            let totalSales = 0;
+            let cashRecd = 0;
+            let onlineRecd = 0;
+            let productMap = {};
+
+            filteredSales.forEach(order => {
+                totalSales += order.grandTotal;
+                cashRecd += (order.cashAmount || 0);
+                onlineRecd += (order.onlineAmount || 0);
+
+                if (Array.isArray(order.items)) {
+                    order.items.forEach(item => {
+                        if (!productMap[item.name]) productMap[item.name] = { qty: 0, revenue: 0 };
+                        let lineVal = item.lineTotal !== undefined ? item.lineTotal : (item.qty * item.price);
+                        productMap[item.name].qty += item.qty;
+                        productMap[item.name].revenue += lineVal;
+                    });
+                }
+            });
+
+            document.getElementById('stat-total-sales').innerText = `₹ ${totalSales.toFixed(2)}`;
+            document.getElementById('stat-cash-sales').innerText = `₹ ${cashRecd.toFixed(2)}`;
+            document.getElementById('stat-online-sales').innerText = `₹ ${onlineRecd.toFixed(2)}`;
+
+            let pContainer = document.getElementById('product-stats-container');
+            let pKeys = Object.keys(productMap);
+
+            if (pKeys.length === 0) {
+                pContainer.innerHTML = `<div style="font-size:0.75rem; color:#94a3b8; grid-column: 1/-1;">No product sales in this period</div>`;
+                return;
+            }
+
+            pContainer.innerHTML = pKeys.map(k => `
+                <div class="product-stat-card">
+                    <div class="p-name">${k}</div>
+                    <div>Qty: <strong>${productMap[k].qty}</strong></div>
+                    <div>Total: <strong>₹ ${productMap[k].revenue.toFixed(2)}</strong></div>
+                </div>
+            `).join('');
+        }
+
+        function reprintReceipt(orderId) {
+            let order = salesHistory.find(s => s.id === orderId);
+            if (order) printThermalReceipt(order);
+        }
+
+        function confirmDeleteSale(orderId) {
+            showConfirmModal(
+                "Delete Bill Record?",
+                `Are you sure you want to permanently delete Bill #${orderId}?`,
+                "Yes, Delete",
+                () => {
+                    salesHistory = salesHistory.filter(s => s.id !== orderId);
+                    safeSet('pos_sales', JSON.stringify(salesHistory));
+                    renderHistory();
+                    updateBillNoDisplay();
+                    showToast("Order deleted");
+                }
+            );
+        }
+
+        function confirmMasterDelete() {
+            showConfirmModal(
+                "Clear ALL Sales History?",
+                "WARNING: This will permanently erase all saved sales records from Local Storage!",
+                "Yes, Erase All",
+                () => {
+                    salesHistory = [];
+                    safeSet('pos_sales', JSON.stringify(salesHistory));
+                    renderHistory();
+                    updateBillNoDisplay();
+                    showToast("All Sales Cleared");
+                }
+            );
+        }
+
+        /* =========================================================
+           SETTINGS & BRANDING
+           ========================================================= */
+        function applyBranding() {
+            document.getElementById('app-name').innerText = storeConfig.name;
+            document.getElementById('app-slogan').innerText = storeConfig.slogan || '';
+            document.getElementById('app-logo').src = storeConfig.logo ? storeConfig.logo : 'icon-192.png';
+            document.title = storeConfig.name || 'DA POS';
+        }
+
+        function applyButtonVisibility() {
+            // Current Order Action Buttons
+            let waBtn = document.getElementById('btn-action-whatsapp');
+            let isWaShown = storeConfig.showWhatsapp !== false;
+            waBtn.style.display = isWaShown ? 'flex' : 'none';
+
+            let printBtn = document.getElementById('btn-action-print');
+            printBtn.style.display = storeConfig.showPrint !== false ? 'flex' : 'none';
+
+            let saveBtn = document.getElementById('btn-action-save');
+            saveBtn.style.display = storeConfig.showSave !== false ? 'flex' : 'none';
+
+            // Sales History Export Options Buttons
+            let expExcelBtn = document.getElementById('btn-export-excel');
+            let expPdfBtn = document.getElementById('btn-export-pdf');
+            let expImgBtn = document.getElementById('btn-export-img');
+
+            if (expExcelBtn) expExcelBtn.style.display = storeConfig.showExpExcel !== false ? 'inline-flex' : 'none';
+            if (expPdfBtn) expPdfBtn.style.display = storeConfig.showExpPdf !== false ? 'inline-flex' : 'none';
+            if (expImgBtn) expImgBtn.style.display = storeConfig.showExpImg !== false ? 'inline-flex' : 'none';
+        }
+
+        function applyDiscountVisibility() {
+            let isPctEnabled = storeConfig.showDiscount !== false;
+            let isFlatEnabled = storeConfig.showDiscountFlat !== false;
+            document.getElementById('discount-row').style.display = isPctEnabled ? 'flex' : 'none';
+            document.getElementById('discount-flat-row').style.display = isFlatEnabled ? 'flex' : 'none';
+            if (!isPctEnabled) document.getElementById('discount-pct').value = 0;
+            if (!isFlatEnabled) document.getElementById('discount-flat').value = 0;
+            calculateBill();
+        }
+
+        function applyCustomerInfoVisibility() {
+            let isCustInfoEnabled = storeConfig.showCustomerInfo !== false;
+            document.getElementById('customer-info-container').style.display = isCustInfoEnabled ? 'block' : 'none';
+        }
+
+        function toggleGstSettingsInput() {
+            let isGst = document.getElementById('cfg-enable-gst').checked;
+            document.getElementById('gst-rate-box').style.display = isGst ? 'flex' : 'none';
+        }
+
+        function openBrandingModal() {
+            document.getElementById('brand-name-input').value = storeConfig.name || '';
+            document.getElementById('brand-slogan-input').value = storeConfig.slogan || '';
+            document.getElementById('brand-upi-input').value = storeConfig.upiId || '';
+            document.getElementById('cfg-enable-upi-qr').checked = storeConfig.enableUpiQr !== false;
+            document.getElementById('store-gstin-input').value = storeConfig.gstin || '';
+            
+            document.getElementById('store-address-input').value = storeConfig.address || '';
+            document.getElementById('store-city-input').value = storeConfig.city || '';
+            document.getElementById('store-pincode-input').value = storeConfig.pincode || '';
+            document.getElementById('store-state-input').value = storeConfig.state || '';
+            document.getElementById('store-phone-input').value = storeConfig.phone || '';
+            document.getElementById('store-email-input').value = storeConfig.email || '';
+
+            document.getElementById('cfg-enable-gst').checked = storeConfig.enableGst === true;
+            document.getElementById('cfg-gst-rate').value = storeConfig.gstRate || 5;
+            toggleGstSettingsInput();
+
+            document.getElementById('cfg-show-discount').checked = storeConfig.showDiscount !== false;
+            document.getElementById('cfg-show-discount-flat').checked = storeConfig.showDiscountFlat !== false;
+            document.getElementById('cfg-show-customer').checked = storeConfig.showCustomerInfo !== false;
+            document.getElementById('cfg-print-cust-on-bill').checked = storeConfig.printCustOnBill === true;
+
+            // Load Order Action Buttons & Export check states
+            document.getElementById('cfg-show-whatsapp').checked = storeConfig.showWhatsapp !== false;
+            document.getElementById('cfg-show-print').checked = storeConfig.showPrint !== false;
+            document.getElementById('cfg-show-save').checked = storeConfig.showSave !== false;
+
+            document.getElementById('cfg-show-exp-excel').checked = storeConfig.showExpExcel !== false;
+            document.getElementById('cfg-show-exp-pdf').checked = storeConfig.showExpPdf !== false;
+            document.getElementById('cfg-show-exp-img').checked = storeConfig.showExpImg !== false;
+
+            renderSettingsCategories();
+            document.getElementById('branding-modal').style.display = 'flex';
+        }
+
+        function closeBrandingModal() {
+            document.getElementById('branding-modal').style.display = 'none';
+        }
+
+        function saveBranding() {
+            let name = document.getElementById('brand-name-input').value.trim();
+            let slogan = document.getElementById('brand-slogan-input').value.trim();
+            let upiId = document.getElementById('brand-upi-input').value.trim();
+            let enableUpiQr = document.getElementById('cfg-enable-upi-qr').checked;
+            let gstin = document.getElementById('store-gstin-input').value.trim();
+            let fileInput = document.getElementById('brand-logo-file');
+
+            let address = document.getElementById('store-address-input').value.trim();
+            let city = document.getElementById('store-city-input').value.trim();
+            let pincode = document.getElementById('store-pincode-input').value.trim();
+            let state = document.getElementById('store-state-input').value.trim();
+            let phone = document.getElementById('store-phone-input').value.trim();
+            let email = document.getElementById('store-email-input').value.trim();
+
+            let enableGst = document.getElementById('cfg-enable-gst').checked;
+            let gstRate = parseFloat(document.getElementById('cfg-gst-rate').value) || 0;
+
+            let showDisc = document.getElementById('cfg-show-discount').checked;
+            let showDiscFlat = document.getElementById('cfg-show-discount-flat').checked;
+            let showCust = document.getElementById('cfg-show-customer').checked;
+            let printCust = document.getElementById('cfg-print-cust-on-bill').checked;
+
+            // Save new toggles
+            let showWa = document.getElementById('cfg-show-whatsapp').checked;
+            let showPrnt = document.getElementById('cfg-show-print').checked;
+            let showSv = document.getElementById('cfg-show-save').checked;
+
+            let showExpXls = document.getElementById('cfg-show-exp-excel').checked;
+            let showExpPdf = document.getElementById('cfg-show-exp-pdf').checked;
+            let showExpImg = document.getElementById('cfg-show-exp-img').checked;
+
+            if (name) storeConfig.name = name;
+            storeConfig.slogan = slogan;
+            storeConfig.upiId = upiId;
+            storeConfig.enableUpiQr = enableUpiQr;
+            storeConfig.gstin = gstin;
+            storeConfig.address = address;
+            storeConfig.city = city;
+            storeConfig.pincode = pincode;
+            storeConfig.state = state;
+            storeConfig.phone = phone;
+            storeConfig.email = email;
+
+            storeConfig.enableGst = enableGst;
+            storeConfig.gstRate = gstRate;
+            storeConfig.showDiscount = showDisc;
+            storeConfig.showDiscountFlat = showDiscFlat;
+            storeConfig.showCustomerInfo = showCust;
+            storeConfig.printCustOnBill = printCust;
+
+            storeConfig.showWhatsapp = showWa;
+            storeConfig.showPrint = showPrnt;
+            storeConfig.showSave = showSv;
+
+            storeConfig.showExpExcel = showExpXls;
+            storeConfig.showExpPdf = showExpPdf;
+            storeConfig.showExpImg = showExpImg;
+
+            let finalizeSave = () => {
+                safeSet('pos_config', JSON.stringify(storeConfig));
+                
+                // Update active store name in storesList
+                let currIdx = storesList.findIndex(s => s.id === currentStoreId);
+                if (currIdx !== -1) {
+                    storesList[currIdx].name = storeConfig.name;
+                    safeSet('pos_stores_list', JSON.stringify(storesList));
+                }
+
+                applyBranding();
+                applyButtonVisibility();
+                applyDiscountVisibility();
+                applyCustomerInfoVisibility();
+                renderDashboardStoreAndStaffControls();
+                calculateBill();
+                closeBrandingModal();
+                showToast("Settings Updated & Saved Permanently!");
+            };
+
+            if (fileInput.files && fileInput.files[0]) {
+                let reader = new FileReader();
+                reader.onload = function(e) {
+                    storeConfig.logo = e.target.result;
+                    finalizeSave();
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+            } else {
+                finalizeSave();
+            }
+        }
+
+        function getFullStoreAddress() {
+            let parts = [];
+            if (storeConfig.address) parts.push(storeConfig.address);
+            if (storeConfig.city) parts.push(storeConfig.city);
+            if (storeConfig.pincode) parts.push(storeConfig.pincode);
+            if (storeConfig.state) parts.push(storeConfig.state);
+            
+            let addrStr = parts.join(', ');
+            let contactParts = [];
+            if (storeConfig.gstin) contactParts.push(`GSTIN: ${storeConfig.gstin}`);
+            if (storeConfig.phone) contactParts.push(`Ph: ${storeConfig.phone}`);
+            if (storeConfig.email) contactParts.push(`Mail: ${storeConfig.email}`);
+
+            let contactStr = contactParts.join(' | ');
+            if (addrStr && contactStr) return `${addrStr}<br>${contactStr}`;
+            return addrStr || contactStr;
+        }
+
+        /* =========================================================
+           EXPORTS & REPORTS (PDF, EXCEL, IMAGE)
+           ========================================================= */
+        function populateExportContainer(filteredSales) {
+            document.getElementById('exp-header-title').innerText = storeConfig.name;
+            document.getElementById('exp-header-sub').innerText = `Sales History Report - ${formatDateDDMMYYYYWithTime()}`;
+            document.getElementById('exp-header-addr').innerHTML = getFullStoreAddress();
+
+            let hasDiscount = filteredSales.some(s => getOrderDiscountParts(s).total > 0);
+            let hasGst = filteredSales.some(s => s.totalGstAmt > 0);
+
+            document.getElementById('exp-th-discount').style.display = hasDiscount ? '' : 'none';
+            document.getElementById('exp-th-cgst').style.display = hasGst ? '' : 'none';
+            document.getElementById('exp-th-sgst').style.display = hasGst ? '' : 'none';
+            document.getElementById('exp-th-gst').style.display = hasGst ? '' : 'none';
+
+            let tbody = document.getElementById('export-tbody');
+            tbody.innerHTML = filteredSales.map(s => {
+                let itemsList = s.items.map(i => `${i.name} (x${i.qty})`).join(', ');
+                return `
+                <tr>
+                    <td>${s.id}</td>
+                    <td>${s.date}</td>
+                    <td>${s.staffName || 'Admin'} (${s.staffRole || 'Cashier'})</td>
+                    <td>${s.custName || 'N/A'}</td>
+                    <td>${s.custPhone || 'N/A'}</td>
+                    <td>${s.custGender || 'N/A'}</td>
+                    <td>${itemsList}</td>
+                    <td>₹ ${s.subTotal.toFixed(2)}</td>
+                    ${hasDiscount ? `<td>${(function(){ const dp = getOrderDiscountParts(s); const a = []; if (dp.pct > 0) a.push(dp.pct + '%'); if (dp.flat > 0) a.push('₹' + dp.flat.toFixed(2)); return a.length ? a.join(' + ') : '-'; })()}</td>` : ''}
+                    ${hasGst ? `<td>₹ ${(s.cgstAmt||0).toFixed(2)}</td>` : ''}
+                    ${hasGst ? `<td>₹ ${(s.sgstAmt||0).toFixed(2)}</td>` : ''}
+                    ${hasGst ? `<td>₹ ${(s.totalGstAmt||0).toFixed(2)}</td>` : ''}
+                    <td>₹ ${s.grandTotal.toFixed(2)}</td>
+                    <td>${s.paymentMode}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function exportToExcel() {
+            let filteredSales = getFilteredSalesHistory();
+            if (filteredSales.length === 0) return showToast("No sales records to export!", true);
+
+            let excelData = filteredSales.map(s => ({
+                "Bill No": s.id,
+                "Date": s.date,
+                "Store Name": s.storeName || storeConfig.name,
+                "Staff Name": s.staffName || "Staff",
+                "Staff Role": s.staffRole || "Cashier",
+                "Customer Name": s.custName || "",
+                "Phone": s.custPhone || "",
+                "Gender": s.custGender || "",
+                "Items Purchased": s.items.map(i => `${i.name} x${i.qty}`).join('; '),
+                "Subtotal (₹)": s.subTotal,
+                "Discount (%)": s.discount || 0,
+                "Discount Flat (₹)": s.discountFlat || 0,
+                "Total Discount (₹)": Number(getOrderDiscountParts(s).total.toFixed(2)),
+                "CGST (₹)": s.cgstAmt || 0,
+                "SGST (₹)": s.sgstAmt || 0,
+                "Total GST (₹)": s.totalGstAmt || 0,
+                "Grand Total (₹)": s.grandTotal,
+                "Payment Mode": s.paymentMode
+            }));
+
+            let worksheet = XLSX.utils.json_to_sheet(excelData);
+            let workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Sales_Report");
+            XLSX.writeFile(workbook, `SalesReport_${Date.now()}.xlsx`);
+        }
+
+        function exportToPDF() {
+            let filteredSales = getFilteredSalesHistory();
+            if (filteredSales.length === 0) return showToast("No records to export!", true);
+
+            populateExportContainer(filteredSales);
+            let elem = document.getElementById('export-wrapper');
+
+            html2canvas(elem, { scale: 2 }).then(canvas => {
+                let imgData = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                let pdf = new jsPDF('p', 'mm', 'a4');
+                let imgWidth = 210;
+                let imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+                pdf.save(`SalesReport_${Date.now()}.pdf`);
+            });
+        }
+
+        function exportToImage() {
+            let filteredSales = getFilteredSalesHistory();
+            if (filteredSales.length === 0) return showToast("No records to export!", true);
+
+            populateExportContainer(filteredSales);
+            let elem = document.getElementById('export-wrapper');
+
+            html2canvas(elem, { scale: 2 }).then(canvas => {
+                let link = document.createElement('a');
+                link.download = `SalesReport_${Date.now()}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+
+        function openAnalyticsPrintModal() {
+            document.getElementById('analytics-print-modal').style.display = 'flex';
+        }
+
+        function closeAnalyticsPrintModal() {
+            document.getElementById('analytics-print-modal').style.display = 'none';
+        }
+
+        function triggerAnalyticsExport(format) {
+            closeAnalyticsPrintModal();
+            let filteredSales = getFilteredSalesHistory();
+
+            let totalSales = 0;
+            let cashRecd = 0;
+            let onlineRecd = 0;
+            let productMap = {};
+
+            filteredSales.forEach(order => {
+                totalSales += order.grandTotal;
+                cashRecd += (order.cashAmount || 0);
+                onlineRecd += (order.onlineAmount || 0);
+
+                if (Array.isArray(order.items)) {
+                    order.items.forEach(item => {
+                        if (!productMap[item.name]) productMap[item.name] = { qty: 0, revenue: 0 };
+                        let lineVal = item.lineTotal !== undefined ? item.lineTotal : (item.qty * item.price);
+                        productMap[item.name].qty += item.qty;
+                        productMap[item.name].revenue += lineVal;
+                    });
+                }
+            });
+
+            if (format === 'excel') {
+                let excelData = Object.keys(productMap).map(pName => ({
+                    "Product Name": pName,
+                    "Quantity Sold": productMap[pName].qty,
+                    "Total Revenue (₹)": productMap[pName].revenue
+                }));
+                let worksheet = XLSX.utils.json_to_sheet(excelData);
+                let workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Analytics");
+                XLSX.writeFile(workbook, `Analytics_${Date.now()}.xlsx`);
+                return;
+            }
+
+            if (format === 'print') {
+                let receiptBox = document.getElementById('thermal-receipt');
+                let productRowsHtml = Object.keys(productMap).map(k => `<tr><td>${k} x${productMap[k].qty}</td><td>₹${productMap[k].revenue.toFixed(2)}</td></tr>`).join('');
+                receiptBox.innerHTML = `
+                    <h3>${storeConfig.name}</h3>
+                    <p><strong>PRODUCT SALES ANALYTICS</strong></p>
+                    <div class="divider"></div>
+                    <table>
+                        <tr><td>Total Revenue:</td><td>₹${totalSales.toFixed(2)}</td></tr>
+                        <tr><td>Cash Recd:</td><td>₹${cashRecd.toFixed(2)}</td></tr>
+                        <tr><td>Online Recd:</td><td>₹${onlineRecd.toFixed(2)}</td></tr>
+                    </table>
+                    <div class="divider"></div>
+                    <p style="text-align:left; font-weight:bold;">PRODUCTS:</p>
+                    <table><tbody>${productRowsHtml || '<tr><td colspan="2">No sales</td></tr>'}</tbody></table>
+                `;
+                window.print();
+                return;
+            }
+
+            // PDF & Image
+            document.getElementById('analytics-exp-title').innerText = storeConfig.name;
+            document.getElementById('analytics-exp-total').innerText = `₹ ${totalSales.toFixed(2)}`;
+            document.getElementById('analytics-exp-cash').innerText = `₹ ${cashRecd.toFixed(2)}`;
+            document.getElementById('analytics-exp-online').innerText = `₹ ${onlineRecd.toFixed(2)}`;
+
+            let tbody = document.getElementById('analytics-exp-tbody');
+            let pKeys = Object.keys(productMap);
+            tbody.innerHTML = pKeys.length ? pKeys.map(k => `<tr><td>${k}</td><td>${productMap[k].qty}</td><td>₹ ${productMap[k].revenue.toFixed(2)}</td></tr>`).join('') : `<tr><td colspan="3" style="text-align:center;">No data</td></tr>`;
+
+            let elem = document.getElementById('analytics-export-wrapper');
+            html2canvas(elem, { scale: 2 }).then(canvas => {
+                if (format === 'image') {
+                    let link = document.createElement('a');
+                    link.download = `Analytics_${Date.now()}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                } else if (format === 'pdf') {
+                    const { jsPDF } = window.jspdf;
+                    let pdf = new jsPDF('p', 'mm', 'a4');
+                    let imgWidth = 210;
+                    let imgHeight = (canvas.height * imgWidth) / canvas.width;
+                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight);
+                    pdf.save(`Analytics_${Date.now()}.pdf`);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
